@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 36 33% 97%;
+    --foreground: 200 30% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 200 30% 12%;
+
+    --primary: 200 45% 22%;
+    --primary-foreground: 36 33% 97%;
+
+    --secondary: 200 20% 95%;
+    --secondary-foreground: 200 30% 18%;
+
+    --muted: 200 15% 94%;
+    --muted-foreground: 200 12% 42%;
+
+    --accent: 195 50% 90%;
+    --accent-foreground: 200 30% 18%;
+
+    --border: 200 20% 88%;
+    --input: 200 20% 88%;
+    --ring: 200 45% 30%;
+
+    --radius: 1rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+  }
+
+  /* Premium serif numerals for hero metrics */
+  .font-display {
+    font-feature-settings: "lnum" 1, "tnum" 1;
+    letter-spacing: -0.04em;
+  }
+}
+
+/* Inline keyframes referenced from raw CSS (the Tailwind plugin only emits
+   keyframes that are bound to an `animate-*` utility class). */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@layer components {
+  /* Gradient background for the hero card */
+  .hero-gradient {
+    background:
+      radial-gradient(
+        circle at 15% 20%,
+        rgba(184, 214, 225, 0.55) 0%,
+        transparent 45%
+      ),
+      radial-gradient(
+        circle at 85% 80%,
+        rgba(136, 184, 204, 0.4) 0%,
+        transparent 50%
+      ),
+      linear-gradient(180deg, #ffffff 0%, #f5fafc 100%);
+  }
+
+  .page-gradient {
+    background:
+      radial-gradient(
+        ellipse 80% 50% at 50% -10%,
+        rgba(184, 214, 225, 0.35) 0%,
+        transparent 60%
+      ),
+      linear-gradient(180deg, #faf8f4 0%, #f5f3ee 100%);
+  }
+
+  .ambient-glow::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.9),
+      rgba(184, 214, 225, 0.5) 50%,
+      rgba(255, 255, 255, 0.1)
+    );
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .stagger > * {
+    opacity: 0;
+    animation: fade-in-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .stagger > *:nth-child(1) { animation-delay: 0.05s; }
+  .stagger > *:nth-child(2) { animation-delay: 0.12s; }
+  .stagger > *:nth-child(3) { animation-delay: 0.19s; }
+  .stagger > *:nth-child(4) { animation-delay: 0.26s; }
+  .stagger > *:nth-child(5) { animation-delay: 0.33s; }
+  .stagger > *:nth-child(6) { animation-delay: 0.40s; }
+
+  /* Hide scrollbar for chart but keep functional */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+}
