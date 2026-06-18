@@ -14,8 +14,6 @@ export type CrowdLevel =
   | "busy"
   | "very-busy";
 
-export type Confidence = "low" | "medium" | "high";
-
 export type Trend = "rising" | "steady" | "falling";
 
 export interface PoolStatus {
@@ -27,8 +25,6 @@ export interface PoolStatus {
   capacity: number;
   /** When the underlying sensor reading was taken. */
   lastUpdated: Date;
-  /** Sensor / model confidence in the current reading. */
-  confidence: Confidence;
   /** Direction occupancy is moving over the last ~30 minutes. */
   trend: Trend;
 }

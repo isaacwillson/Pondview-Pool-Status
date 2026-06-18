@@ -1,7 +1,12 @@
-import { MapPin } from "lucide-react";
+"use client";
+
+import { Lock, MapPin } from "lucide-react";
 import { LivePulse } from "./live-pulse";
+import { usePoolStatus } from "@/hooks/use-pool-status";
 
 export function SiteHeader() {
+  const { status } = usePoolStatus();
+  const closed = status?.isOpen === false;
   return (
     <header className="sticky top-0 z-40 border-b border-border/50 bg-background/70 backdrop-blur-xl">
       <div className="container flex h-16 items-center justify-between">
@@ -33,9 +38,22 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2 rounded-full border border-border/70 bg-white/70 px-3 py-1.5 text-xs text-muted-foreground">
-          <LivePulse size="sm" />
-          <span className="hidden sm:inline">Live · Deck Sensor A2</span>
-          <MapPin className="h-3 w-3 sm:hidden" />
+          {closed ? (
+            <>
+              <span
+                className="inline-flex h-1.5 w-1.5 rounded-full bg-amber-500"
+                aria-hidden
+              />
+              <span className="hidden sm:inline">Closed by management</span>
+              <Lock className="h-3 w-3 sm:hidden" />
+            </>
+          ) : (
+            <>
+              <LivePulse size="sm" />
+              <span className="hidden sm:inline">Live · Deck Sensor A2</span>
+              <MapPin className="h-3 w-3 sm:hidden" />
+            </>
+          )}
         </div>
       </div>
     </header>
