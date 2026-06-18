@@ -1,17 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowUpRight, Clock, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowUpRight, Clock, Lock, TrendingUp, WifiOff } from "lucide-react";
 import { LivePulse } from "./live-pulse";
 import { AnimatedNumber } from "./animated-number";
 import { Skeleton } from "./ui/skeleton";
 import { Badge } from "./ui/badge";
 import { cn, formatRelativeTime, pctFull } from "@/lib/utils";
 import type { PoolStatus } from "@/lib/types";
+import type { AdminPoolStatus } from "@/lib/pool-status";
 import { crowdLabel } from "@/lib/mock-data";
 
 interface HeroStatusProps {
   status: PoolStatus | null;
+  adminStatus: AdminPoolStatus | null;
+  isLoading: boolean;
 }
 
 const CROWD_STYLES: Record<
@@ -25,19 +28,39 @@ const CROWD_STYLES: Record<
   "very-busy": { dot: "rose", badge: "danger", emoji: "🔴" },
 };
 
-export function HeroStatus({ status }: HeroStatusProps) {
-  // Keep relative time fresh on the client.
+export function HeroStatus({
+  status,
+  adminStatus,
+  isLoading,
+}: HeroStatusProps) {
+  // Refresh relative-time strings.
   const [, force] = useState(0);
   useEffect(() => {
     const i = setInterval(() => force((x) => x + 1), 30_000);
     return () => clearInterval(i);
   }, []);
 
-  if (!status) return <HeroStatusSkeleton />;
+  const closed = adminStatus?.isOpen === false;
 
-  const style = CROWD_STYLES[status.crowdLevel] ?? CROWD_STYLES.moderate;
-  const occupancyPct = pctFull(status.occupancy, status.capacity);
+  if (closed) {
+    return <HeroShell><ClosedHero adminStatus={adminStatus} /></HeroShell>;
+  }
+  if (!status) {
+    if (isLoading) return <HeroStatusSkeleton />;
+    return <HeroShell><EmptyHero /></HeroShell>;
+  }
+  return (
+    <HeroShell>
+      <LiveHero status={status} />
+    </HeroShell>
+  );
+}
 
+// ---------------------------------------------------------------------------
+// Shell: shared gradient card with the decorative pattern overlay
+// ---------------------------------------------------------------------------
+
+function HeroShell({ children }: { children: React.ReactNode }) {
   return (
     <section
       className={cn(
@@ -47,7 +70,6 @@ export function HeroStatus({ status }: HeroStatusProps) {
       )}
       aria-labelledby="hero-status-heading"
     >
-      {/* Decorative water-tile pattern overlay */}
       <svg
         className="pointer-events-none absolute -right-12 -top-12 h-72 w-72 text-pond-200/40"
         viewBox="0 0 200 200"
@@ -61,98 +83,293 @@ export function HeroStatus({ status }: HeroStatusProps) {
         </defs>
         <rect width="200" height="200" fill="url(#dots)" />
       </svg>
-
       <div className="relative grid gap-12 p-8 sm:p-12 lg:grid-cols-[1.1fr_0.9fr] lg:p-16">
-        {/* LEFT: Headline */}
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2.5">
-            <LivePulse color={style.dot} />
-            <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Live · Pool Status
-            </span>
-          </div>
-
-          <h1
-            id="hero-status-heading"
-            className="mt-7 font-display text-[clamp(2.75rem,7vw,5.25rem)] font-normal leading-[0.95] tracking-tight text-foreground text-balance"
-          >
-            {crowdLabel(status.crowdLevel)}
-            <span className="italic text-pond-600">.</span>
-          </h1>
-
-          <p className="mt-6 max-w-md text-lg leading-relaxed text-muted-foreground text-balance">
-            The pool is comfortably below capacity — a great time for a swim,
-            with room to spread out on the deck.
-          </p>
-
-          <div className="mt-10 flex flex-wrap items-center gap-3">
-            <Badge variant={style.badge} className="gap-1.5 rounded-full px-3 py-1 text-sm">
-              <span aria-hidden>{style.emoji}</span>
-              {crowdLabel(status.crowdLevel)}
-            </Badge>
-            <Badge variant="outline" className="gap-1.5 rounded-full bg-white/60 px-3 py-1 text-sm">
-              <Sparkles className="h-3.5 w-3.5 text-pond-500" />
-              {capConfidence(status.confidence)} confidence
-            </Badge>
-            <Badge variant="outline" className="gap-1.5 rounded-full bg-white/60 px-3 py-1 text-sm">
-              <TrendingUp className="h-3.5 w-3.5 text-pond-500" />
-              {trendLabel(status.trend)}
-            </Badge>
-          </div>
-        </div>
-
-        {/* RIGHT: Occupancy figure & meta */}
-        <div className="flex flex-col justify-between gap-10">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Estimated Occupancy
-            </p>
-            <div className="mt-4 flex items-baseline gap-3">
-              <span
-                aria-label={`${occupancyPct} percent full`}
-                className="font-display text-[clamp(5rem,12vw,8.5rem)] font-normal leading-none tracking-tight text-foreground"
-              >
-                <AnimatedNumber value={occupancyPct} />
-                <span className="text-[0.55em] text-pond-600">%</span>
-              </span>
-              <span className="font-display text-2xl italic text-muted-foreground">
-                full
-              </span>
-            </div>
-
-            {/* Capacity bar */}
-            <div className="mt-7">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span className="font-medium uppercase tracking-[0.15em]">
-                  Capacity
-                </span>
-                <span className="tabular-nums">{100 - occupancyPct}% available</span>
-              </div>
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-pond-100/70">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-pond-400 to-pond-600 transition-[width] duration-1000 ease-out"
-                  style={{ width: `${occupancyPct}%` }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Meta row */}
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-5 border-t border-border/50 pt-7 sm:grid-cols-2">
-            <MetaItem
-              icon={<Clock className="h-3.5 w-3.5" />}
-              label="Last Updated"
-              value={formatRelativeTime(status.lastUpdated)}
-            />
-            <MetaItem
-              icon={<ArrowUpRight className="h-3.5 w-3.5" />}
-              label="Reading from"
-              value="Deck sensor · A2"
-            />
-          </dl>
-        </div>
+        {children}
       </div>
     </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Live hero — we have a real sensor reading.
+// ---------------------------------------------------------------------------
+
+function LiveHero({ status }: { status: PoolStatus }) {
+  const style = CROWD_STYLES[status.crowdLevel] ?? CROWD_STYLES.moderate;
+  const occupancyPct = pctFull(status.occupancy, status.capacity);
+
+  return (
+    <>
+      <div className="flex flex-col">
+        <Eyebrow icon={<LivePulse color={style.dot} />}>Live · Pool Status</Eyebrow>
+        <Headline>{crowdLabel(status.crowdLevel)}</Headline>
+        <Subtitle>
+          The pool is comfortably below capacity — a great time for a swim, with
+          room to spread out on the deck.
+        </Subtitle>
+        <div className="mt-10 flex flex-wrap items-center gap-3">
+          <Badge variant={style.badge} className="gap-1.5 rounded-full px-3 py-1 text-sm">
+            <span aria-hidden>{style.emoji}</span>
+            {crowdLabel(status.crowdLevel)}
+          </Badge>
+          <Badge variant="outline" className="gap-1.5 rounded-full bg-white/60 px-3 py-1 text-sm">
+            <TrendingUp className="h-3.5 w-3.5 text-pond-500" />
+            {trendLabel(status.trend)}
+          </Badge>
+        </div>
+      </div>
+
+      <div className="flex flex-col justify-between gap-10">
+        <div>
+          <SmallLabel>Estimated Occupancy</SmallLabel>
+          <div className="mt-4 flex items-baseline gap-3">
+            <span
+              aria-label={`${occupancyPct} percent full`}
+              className="font-display text-[clamp(5rem,12vw,8.5rem)] font-normal leading-none tracking-tight text-foreground"
+            >
+              <AnimatedNumber value={occupancyPct} />
+              <span className="text-[0.55em] text-pond-600">%</span>
+            </span>
+            <span className="font-display text-2xl italic text-muted-foreground">
+              full
+            </span>
+          </div>
+          <CapacityBar occupancyPct={occupancyPct} />
+        </div>
+        <MetaRow
+          updatedValue={formatRelativeTime(status.lastUpdated)}
+          sourceLabel="Reading from"
+          sourceValue="Deck sensor · A2"
+        />
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Closed hero — admin has flipped the pool to closed.
+// ---------------------------------------------------------------------------
+
+function ClosedHero({
+  adminStatus,
+}: {
+  adminStatus: AdminPoolStatus | null;
+}) {
+  return (
+    <>
+      <div className="flex flex-col">
+        <Eyebrow
+          icon={
+            <span
+              className="inline-flex h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-white/70"
+              aria-hidden
+            />
+          }
+        >
+          Currently Closed
+        </Eyebrow>
+        <Headline>Closed</Headline>
+        <Subtitle>
+          {adminStatus?.reason ??
+            "The pool is currently closed. Please check back later."}
+        </Subtitle>
+        <div className="mt-10 flex flex-wrap items-center gap-3">
+          <Badge variant="warning" className="gap-1.5 rounded-full px-3 py-1 text-sm">
+            <Lock className="h-3.5 w-3.5" />
+            Closed by management
+          </Badge>
+        </div>
+      </div>
+
+      <div className="flex flex-col justify-between gap-10">
+        <div>
+          <SmallLabel>Estimated Occupancy</SmallLabel>
+          <div className="mt-4 flex items-baseline gap-3">
+            <span
+              aria-label="Pool closed"
+              className="font-display text-[clamp(5rem,12vw,8.5rem)] font-normal leading-none tracking-tight text-muted-foreground/50"
+            >
+              —<span className="text-[0.55em] text-muted-foreground/60">%</span>
+            </span>
+            <span className="font-display text-2xl italic text-muted-foreground/50">
+              full
+            </span>
+          </div>
+          <CapacityBar occupancyPct={0} muted rightCaption="Unavailable" />
+        </div>
+        <MetaRow
+          updatedValue={
+            adminStatus?.lastChangedAt
+              ? formatRelativeTime(new Date(adminStatus.lastChangedAt))
+              : "—"
+          }
+          sourceLabel="Status set by"
+          sourceValue="Property management"
+        />
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Empty hero — sensor pipeline is wired up but no readings yet.
+// ---------------------------------------------------------------------------
+
+function EmptyHero() {
+  return (
+    <>
+      <div className="flex flex-col">
+        <Eyebrow
+          icon={
+            <span
+              className="inline-flex h-2.5 w-2.5 rounded-full bg-muted-foreground/40"
+              aria-hidden
+            />
+          }
+        >
+          Awaiting sensor data
+        </Eyebrow>
+        <Headline>Standing by</Headline>
+        <Subtitle>
+          The deck sensor will start reporting occupancy here as soon as it
+          comes online.
+        </Subtitle>
+        <div className="mt-10 flex flex-wrap items-center gap-3">
+          <Badge variant="outline" className="gap-1.5 rounded-full bg-white/60 px-3 py-1 text-sm">
+            <WifiOff className="h-3.5 w-3.5 text-muted-foreground" />
+            No readings yet
+          </Badge>
+        </div>
+      </div>
+
+      <div className="flex flex-col justify-between gap-10">
+        <div>
+          <SmallLabel>Estimated Occupancy</SmallLabel>
+          <div className="mt-4 flex items-baseline gap-3">
+            <span
+              aria-label="Awaiting sensor data"
+              className="font-display text-[clamp(5rem,12vw,8.5rem)] font-normal leading-none tracking-tight text-muted-foreground/50"
+            >
+              —<span className="text-[0.55em] text-muted-foreground/60">%</span>
+            </span>
+            <span className="font-display text-2xl italic text-muted-foreground/50">
+              full
+            </span>
+          </div>
+          <CapacityBar occupancyPct={0} muted rightCaption="Awaiting data" />
+        </div>
+        <MetaRow
+          updatedValue="—"
+          sourceLabel="Reading from"
+          sourceValue="Deck sensor · A2"
+        />
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Small composable bits used by all three render paths
+// ---------------------------------------------------------------------------
+
+function Eyebrow({
+  icon,
+  children,
+}: {
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      {icon}
+      <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function Headline({ children }: { children: React.ReactNode }) {
+  return (
+    <h1
+      id="hero-status-heading"
+      className="mt-7 font-display text-[clamp(2.75rem,7vw,5.25rem)] font-normal leading-[0.95] tracking-tight text-foreground text-balance"
+    >
+      {children}
+      <span className="italic text-pond-600">.</span>
+    </h1>
+  );
+}
+
+function Subtitle({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mt-6 max-w-md text-lg leading-relaxed text-muted-foreground text-balance">
+      {children}
+    </p>
+  );
+}
+
+function SmallLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+      {children}
+    </p>
+  );
+}
+
+function CapacityBar({
+  occupancyPct,
+  muted,
+  rightCaption,
+}: {
+  occupancyPct: number;
+  muted?: boolean;
+  rightCaption?: string;
+}) {
+  const caption = rightCaption ?? `${100 - occupancyPct}% available`;
+  return (
+    <div className="mt-7">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span className="font-medium uppercase tracking-[0.15em]">Capacity</span>
+        <span className="tabular-nums">{caption}</span>
+      </div>
+      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-pond-100/70">
+        <div
+          className={cn(
+            "h-full rounded-full transition-[width] duration-1000 ease-out",
+            muted
+              ? "bg-muted-foreground/20"
+              : "bg-gradient-to-r from-pond-400 to-pond-600",
+          )}
+          style={{ width: `${occupancyPct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function MetaRow({
+  updatedValue,
+  sourceLabel,
+  sourceValue,
+}: {
+  updatedValue: string;
+  sourceLabel: string;
+  sourceValue: string;
+}) {
+  return (
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-5 border-t border-border/50 pt-7 sm:grid-cols-2">
+      <MetaItem
+        icon={<Clock className="h-3.5 w-3.5" />}
+        label="Last Updated"
+        value={updatedValue}
+      />
+      <MetaItem
+        icon={<ArrowUpRight className="h-3.5 w-3.5" />}
+        label={sourceLabel}
+        value={sourceValue}
+      />
+    </dl>
   );
 }
 
@@ -176,10 +393,6 @@ function MetaItem({
       </dd>
     </div>
   );
-}
-
-function capConfidence(c: PoolStatus["confidence"]) {
-  return c.charAt(0).toUpperCase() + c.slice(1);
 }
 
 function trendLabel(t: PoolStatus["trend"]) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { usePoolData } from "@/hooks/use-pool-data";
+import { usePoolStatus } from "@/hooks/use-pool-status";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { HeroStatus } from "@/components/hero-status";
@@ -9,7 +10,8 @@ import { LiveConditions } from "@/components/live-conditions";
 import { WeeklyUsageSection } from "@/components/weekly-usage";
 
 export default function HomePage() {
-  const { data } = usePoolData();
+  const { data, isLoading } = usePoolData();
+  const { status: adminStatus } = usePoolStatus();
 
   return (
     <>
@@ -28,12 +30,19 @@ export default function HomePage() {
 
         {/* HERO STATUS */}
         <div id="status" className="scroll-mt-24">
-          <HeroStatus status={data?.status ?? null} />
+          <HeroStatus
+            status={data?.status ?? null}
+            adminStatus={adminStatus}
+            isLoading={isLoading}
+          />
         </div>
 
         {/* BEST TIMES */}
         <div id="best-times" className="scroll-mt-24">
-          <BestTimesChart data={data?.hourlyActivity ?? null} />
+          <BestTimesChart
+            data={data?.hourlyActivity ?? null}
+            isLoading={isLoading}
+          />
         </div>
 
         {/* LIVE CONDITIONS */}
@@ -41,6 +50,8 @@ export default function HomePage() {
           <LiveConditions
             status={data?.status ?? null}
             conditions={data?.conditions ?? null}
+            adminStatus={adminStatus}
+            isLoading={isLoading}
           />
         </div>
 
@@ -48,7 +59,8 @@ export default function HomePage() {
         <div id="insights" className="scroll-mt-24">
           <WeeklyUsageSection
             data={data?.weeklyUsage ?? null}
-            capacity={data?.status.capacity ?? null}
+            capacity={data?.status?.capacity ?? null}
+            isLoading={isLoading}
           />
         </div>
       </main>
