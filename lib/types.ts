@@ -59,8 +59,12 @@ export interface WeeklyUsage {
 }
 
 export interface PoolDataSnapshot {
-  status: PoolStatus;
+  /** null if no readings have ever arrived from the sensor. */
+  status: PoolStatus | null;
+  /** Static-ish conditions (weather, hours). Always present. */
   conditions: PoolConditions;
-  hourlyActivity: HourlyActivity[];
-  weeklyUsage: WeeklyUsage;
+  /** null if no readings recorded yet for today. */
+  hourlyActivity: HourlyActivity[] | null;
+  /** null if fewer than 7 calendar days of recent readings. */
+  weeklyUsage: WeeklyUsage | null;
 }

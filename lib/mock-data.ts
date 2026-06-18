@@ -1,10 +1,12 @@
+import { POOL_CAPACITY, POOL_CLOSE_HOUR, POOL_OPEN_HOUR } from "./config";
 import type {
   CrowdLevel,
   HourlyActivity,
+  PoolConditions,
   PoolDataSnapshot,
 } from "./types";
 
-const CAPACITY = 60;
+const CAPACITY = POOL_CAPACITY;
 
 /** Map a 0–1 activity score to a categorical crowd level. */
 export function activityToCrowdLevel(activity: number): CrowdLevel {
@@ -65,14 +67,34 @@ export function buildHourlyActivity(): HourlyActivity[] {
   }));
 }
 
-/** Build a fresh snapshot of the dashboard's mock data. */
+/**
+ * Build today's conditions. These pieces of the snapshot (weather, hours)
+ * aren't yet wired to real sources, so they live here. The pool open/close
+ * times come from `lib/config.ts` so changing hours is one edit.
+ */
+export function buildConditions(now: Date = new Date()): PoolConditions {
+  const openFrom = new Date(now);
+  openFrom.setHours(POOL_OPEN_HOUR, 0, 0, 0);
+  const openUntil = new Date(now);
+  openUntil.setHours(POOL_CLOSE_HOUR, 0, 0, 0);
+
+  return {
+    airTempF: 84,
+    waterTempF: 81,
+    uvIndex: 7,
+    openFrom,
+    openUntil,
+  };
+}
+
+/**
+ * Build a fully-mocked snapshot. Used only as a fallback when there's
+ * no database connection (local dev without DATABASE_URL); the live site
+ * composes the snapshot from real readings in `pool-data-server.ts`.
+ */
 export function buildSnapshot(now: Date = new Date()): PoolDataSnapshot {
   const occupancy = 12;
   const lastUpdated = new Date(now.getTime() - 2 * 60_000);
-  const openFrom = new Date(now);
-  openFrom.setHours(10, 0, 0, 0);
-  const openUntil = new Date(now);
-  openUntil.setHours(20, 0, 0, 0);
 
   return {
     status: {
@@ -82,13 +104,7 @@ export function buildSnapshot(now: Date = new Date()): PoolDataSnapshot {
       lastUpdated,
       trend: "rising",
     },
-    conditions: {
-      airTempF: 84,
-      waterTempF: 81,
-      uvIndex: 7,
-      openFrom,
-      openUntil,
-    },
+    conditions: buildConditions(now),
     hourlyActivity: buildHourlyActivity(),
     weeklyUsage: {
       peakDay: { day: "Saturday", averageOccupancy: 47 },

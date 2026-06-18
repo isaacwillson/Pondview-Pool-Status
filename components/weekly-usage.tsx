@@ -9,6 +9,7 @@ import type { WeeklyUsage } from "@/lib/types";
 interface WeeklyUsageProps {
   data: WeeklyUsage | null;
   capacity: number | null;
+  isLoading: boolean;
 }
 
 const WEEK_BARS = [
@@ -21,8 +22,15 @@ const WEEK_BARS = [
   { day: "Sun", value: 0.78 },
 ];
 
-export function WeeklyUsageSection({ data, capacity }: WeeklyUsageProps) {
-  if (!data || !capacity) return <WeeklyUsageSkeleton />;
+export function WeeklyUsageSection({
+  data,
+  capacity,
+  isLoading,
+}: WeeklyUsageProps) {
+  if (!data || !capacity) {
+    if (isLoading) return <WeeklyUsageSkeleton />;
+    return <WeeklyUsageEmpty />;
+  }
 
   const peakPct = pctFull(data.peakDay.averageOccupancy, capacity);
   const avgPct = pctFull(data.averageOccupancy, capacity);
@@ -247,6 +255,44 @@ function Sparkline({ points }: { points: number[] }) {
         fill="rgb(48 97 126)"
       />
     </svg>
+  );
+}
+
+function WeeklyUsageEmpty() {
+  return (
+    <section aria-labelledby="weekly-heading">
+      <div className="max-w-2xl">
+        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Community insights
+        </p>
+        <h2
+          id="weekly-heading"
+          className="mt-3 font-display text-3xl font-normal leading-tight tracking-tight text-foreground sm:text-4xl"
+        >
+          This Week’s Usage
+        </h2>
+        <p className="mt-3 max-w-xl text-base text-muted-foreground">
+          Aggregated trends from the last seven days — helping residents find
+          their preferred rhythm.
+        </p>
+      </div>
+
+      <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card
+            key={i}
+            className="flex flex-col items-center justify-center border-dashed bg-secondary/30 p-8 text-center"
+          >
+            <p className="font-display text-xl text-foreground/80">
+              Not enough data yet
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Available after ~7 days of readings.
+            </p>
+          </Card>
+        ))}
+      </div>
+    </section>
   );
 }
 

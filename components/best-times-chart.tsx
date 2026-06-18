@@ -9,6 +9,7 @@ import type { CrowdLevel, HourlyActivity } from "@/lib/types";
 
 interface BestTimesChartProps {
   data: HourlyActivity[] | null;
+  isLoading: boolean;
 }
 
 const TABS = [
@@ -32,10 +33,13 @@ const LEGEND: { level: CrowdLevel; swatch: string }[] = [
   { level: "very-busy", swatch: "bg-rose-400" },
 ];
 
-export function BestTimesChart({ data }: BestTimesChartProps) {
+export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("today");
 
-  if (!data) return <BestTimesSkeleton />;
+  if (!data) {
+    if (isLoading) return <BestTimesSkeleton />;
+    return <BestTimesEmpty />;
+  }
 
   // Show only pool open hours (10 AM – 8 PM)
   const visible = data.filter((d) => d.hour >= 10 && d.hour <= 20);
@@ -185,6 +189,32 @@ function formatHourShort(hour: number): string {
   const period = hour < 12 || hour === 24 ? "a" : "p";
   const h = hour % 12 || 12;
   return `${h}${period}`;
+}
+
+function BestTimesEmpty() {
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="p-7 sm:p-9">
+        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Plan your swim
+        </p>
+        <CardTitle className="font-display text-3xl font-normal tracking-tight sm:text-4xl">
+          Best Times to Visit
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-7 pb-9 sm:px-9">
+        <div className="flex h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-secondary/40 text-center">
+          <p className="font-display text-2xl text-foreground/80">
+            Not enough data yet
+          </p>
+          <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+            Today’s activity curve will fill in here as the deck sensor reports
+            occupancy throughout the day.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 // Deterministic placeholder heights so SSR & client render identically.
