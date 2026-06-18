@@ -1,46 +1,76 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { buildSnapshot } from "@/lib/mock-data";
 import type { PoolDataSnapshot } from "@/lib/types";
+
+const POLL_INTERVAL_MS = 30_000;
 
 interface UsePoolDataResult {
   data: PoolDataSnapshot | null;
   isLoading: boolean;
+  error: string | null;
 }
 
 /**
- * Returns a snapshot of pool data for the dashboard.
+ * Resident dashboard snapshot.
  *
- * Currently backed by `buildSnapshot()` mock data. To wire in a
- * real source, replace the contents of this hook with a fetch /
- * subscription call — the rest of the UI consumes `PoolDataSnapshot`
- * and doesn't care where it comes from.
+ * Fetches `/api/pool-data` (which composes the response from real
+ * Postgres readings + mocked weather) and re-polls every 30 seconds.
+ * Components consuming `data` decide their own empty-state behaviour
+ * for sections that come back `null` (= "Not enough data yet").
  */
 export function usePoolData(): UsePoolDataResult {
   const [data, setData] = useState<PoolDataSnapshot | null>(null);
   const [isLoading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Brief artificial latency so the loading skeleton is visible
-    // on first mount — mimics a network request.
-    const t = setTimeout(() => {
-      setData(buildSnapshot());
-      setLoading(false);
-    }, 650);
+    const ctrl = new AbortController();
 
-    return () => clearTimeout(t);
+    async function fetchSnapshot() {
+      try {
+        const res = await fetch("/api/pool-data", {
+          signal: ctrl.signal,
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json: PoolDataSnapshot = await res.json();
+        // Dates round-trip as ISO strings — restore them so components
+        // can call .toLocaleTimeString() etc. without surprises.
+        setData(reviveDates(json));
+        setError(null);
+      } catch (e) {
+        if ((e as Error).name === "AbortError") return;
+        setError((e as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchSnapshot();
+    const interval = setInterval(fetchSnapshot, POLL_INTERVAL_MS);
+    return () => {
+      ctrl.abort();
+      clearInterval(interval);
+    };
   }, []);
 
-  // Refresh "last updated" relative time on a slow cadence so the
-  // hero card feels alive without rebuilding the whole snapshot.
-  useEffect(() => {
-    if (!data) return;
-    const interval = setInterval(() => {
-      setData((prev) => (prev ? { ...prev } : prev));
-    }, 30_000);
-    return () => clearInterval(interval);
-  }, [data]);
+  return { data, isLoading, error };
+}
 
-  return { data, isLoading };
+function reviveDates(snapshot: PoolDataSnapshot): PoolDataSnapshot {
+  return {
+    ...snapshot,
+    status: snapshot.status
+      ? {
+          ...snapshot.status,
+          lastUpdated: new Date(snapshot.status.lastUpdated),
+        }
+      : null,
+    conditions: {
+      ...snapshot.conditions,
+      openFrom: new Date(snapshot.conditions.openFrom),
+      openUntil: new Date(snapshot.conditions.openUntil),
+    },
+  };
 }
