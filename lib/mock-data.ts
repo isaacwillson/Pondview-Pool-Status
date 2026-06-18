@@ -80,7 +80,6 @@ export function buildSnapshot(now: Date = new Date()): PoolDataSnapshot {
       occupancy,
       capacity: CAPACITY,
       lastUpdated,
-      confidence: "high",
       trend: "rising",
     },
     conditions: {

@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowUpRight, Clock, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowUpRight, Clock, Lock, TrendingUp } from "lucide-react";
 import { LivePulse } from "./live-pulse";
 import { AnimatedNumber } from "./animated-number";
 import { Skeleton } from "./ui/skeleton";
 import { Badge } from "./ui/badge";
 import { cn, formatRelativeTime, pctFull } from "@/lib/utils";
 import type { PoolStatus } from "@/lib/types";
+import type { AdminPoolStatus } from "@/lib/pool-status";
 import { crowdLabel } from "@/lib/mock-data";
 
 interface HeroStatusProps {
   status: PoolStatus | null;
+  adminStatus: AdminPoolStatus | null;
 }
 
 const CROWD_STYLES: Record<
@@ -25,7 +27,7 @@ const CROWD_STYLES: Record<
   "very-busy": { dot: "rose", badge: "danger", emoji: "🔴" },
 };
 
-export function HeroStatus({ status }: HeroStatusProps) {
+export function HeroStatus({ status, adminStatus }: HeroStatusProps) {
   // Keep relative time fresh on the client.
   const [, force] = useState(0);
   useEffect(() => {
@@ -35,8 +37,9 @@ export function HeroStatus({ status }: HeroStatusProps) {
 
   if (!status) return <HeroStatusSkeleton />;
 
+  const closed = adminStatus?.isOpen === false;
   const style = CROWD_STYLES[status.crowdLevel] ?? CROWD_STYLES.moderate;
-  const occupancyPct = pctFull(status.occupancy, status.capacity);
+  const occupancyPct = closed ? 0 : pctFull(status.occupancy, status.capacity);
 
   return (
     <section
@@ -66,9 +69,16 @@ export function HeroStatus({ status }: HeroStatusProps) {
         {/* LEFT: Headline */}
         <div className="flex flex-col">
           <div className="flex items-center gap-2.5">
-            <LivePulse color={style.dot} />
+            {closed ? (
+              <span
+                className="inline-flex h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-white/70"
+                aria-hidden
+              />
+            ) : (
+              <LivePulse color={style.dot} />
+            )}
             <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Live · Pool Status
+              {closed ? "Currently Closed" : "Live · Pool Status"}
             </span>
           </div>
 
@@ -76,28 +86,35 @@ export function HeroStatus({ status }: HeroStatusProps) {
             id="hero-status-heading"
             className="mt-7 font-display text-[clamp(2.75rem,7vw,5.25rem)] font-normal leading-[0.95] tracking-tight text-foreground text-balance"
           >
-            {crowdLabel(status.crowdLevel)}
+            {closed ? "Closed" : crowdLabel(status.crowdLevel)}
             <span className="italic text-pond-600">.</span>
           </h1>
 
           <p className="mt-6 max-w-md text-lg leading-relaxed text-muted-foreground text-balance">
-            The pool is comfortably below capacity — a great time for a swim,
-            with room to spread out on the deck.
+            {closed
+              ? adminStatus?.reason ??
+                "The pool is currently closed. Please check back later."
+              : "The pool is comfortably below capacity — a great time for a swim, with room to spread out on the deck."}
           </p>
 
           <div className="mt-10 flex flex-wrap items-center gap-3">
-            <Badge variant={style.badge} className="gap-1.5 rounded-full px-3 py-1 text-sm">
-              <span aria-hidden>{style.emoji}</span>
-              {crowdLabel(status.crowdLevel)}
-            </Badge>
-            <Badge variant="outline" className="gap-1.5 rounded-full bg-white/60 px-3 py-1 text-sm">
-              <Sparkles className="h-3.5 w-3.5 text-pond-500" />
-              {capConfidence(status.confidence)} confidence
-            </Badge>
-            <Badge variant="outline" className="gap-1.5 rounded-full bg-white/60 px-3 py-1 text-sm">
-              <TrendingUp className="h-3.5 w-3.5 text-pond-500" />
-              {trendLabel(status.trend)}
-            </Badge>
+            {closed ? (
+              <Badge variant="warning" className="gap-1.5 rounded-full px-3 py-1 text-sm">
+                <Lock className="h-3.5 w-3.5" />
+                Closed by management
+              </Badge>
+            ) : (
+              <>
+                <Badge variant={style.badge} className="gap-1.5 rounded-full px-3 py-1 text-sm">
+                  <span aria-hidden>{style.emoji}</span>
+                  {crowdLabel(status.crowdLevel)}
+                </Badge>
+                <Badge variant="outline" className="gap-1.5 rounded-full bg-white/60 px-3 py-1 text-sm">
+                  <TrendingUp className="h-3.5 w-3.5 text-pond-500" />
+                  {trendLabel(status.trend)}
+                </Badge>
+              </>
+            )}
           </div>
         </div>
 
@@ -109,13 +126,31 @@ export function HeroStatus({ status }: HeroStatusProps) {
             </p>
             <div className="mt-4 flex items-baseline gap-3">
               <span
-                aria-label={`${occupancyPct} percent full`}
-                className="font-display text-[clamp(5rem,12vw,8.5rem)] font-normal leading-none tracking-tight text-foreground"
+                aria-label={
+                  closed ? "Pool closed" : `${occupancyPct} percent full`
+                }
+                className={cn(
+                  "font-display text-[clamp(5rem,12vw,8.5rem)] font-normal leading-none tracking-tight",
+                  closed ? "text-muted-foreground/50" : "text-foreground",
+                )}
               >
-                <AnimatedNumber value={occupancyPct} />
-                <span className="text-[0.55em] text-pond-600">%</span>
+                {closed ? (
+                  <>
+                    —<span className="text-[0.55em] text-muted-foreground/60">%</span>
+                  </>
+                ) : (
+                  <>
+                    <AnimatedNumber value={occupancyPct} />
+                    <span className="text-[0.55em] text-pond-600">%</span>
+                  </>
+                )}
               </span>
-              <span className="font-display text-2xl italic text-muted-foreground">
+              <span
+                className={cn(
+                  "font-display text-2xl italic",
+                  closed ? "text-muted-foreground/50" : "text-muted-foreground",
+                )}
+              >
                 full
               </span>
             </div>
@@ -126,12 +161,19 @@ export function HeroStatus({ status }: HeroStatusProps) {
                 <span className="font-medium uppercase tracking-[0.15em]">
                   Capacity
                 </span>
-                <span className="tabular-nums">{100 - occupancyPct}% available</span>
+                <span className="tabular-nums">
+                  {closed ? "Unavailable" : `${100 - occupancyPct}% available`}
+                </span>
               </div>
               <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-pond-100/70">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-pond-400 to-pond-600 transition-[width] duration-1000 ease-out"
-                  style={{ width: `${occupancyPct}%` }}
+                  className={cn(
+                    "h-full rounded-full transition-[width] duration-1000 ease-out",
+                    closed
+                      ? "bg-muted-foreground/20"
+                      : "bg-gradient-to-r from-pond-400 to-pond-600",
+                  )}
+                  style={{ width: `${closed ? 0 : occupancyPct}%` }}
                 />
               </div>
             </div>
@@ -142,12 +184,16 @@ export function HeroStatus({ status }: HeroStatusProps) {
             <MetaItem
               icon={<Clock className="h-3.5 w-3.5" />}
               label="Last Updated"
-              value={formatRelativeTime(status.lastUpdated)}
+              value={
+                closed && adminStatus?.lastChangedAt
+                  ? formatRelativeTime(new Date(adminStatus.lastChangedAt))
+                  : formatRelativeTime(status.lastUpdated)
+              }
             />
             <MetaItem
               icon={<ArrowUpRight className="h-3.5 w-3.5" />}
-              label="Reading from"
-              value="Deck sensor · A2"
+              label={closed ? "Status set by" : "Reading from"}
+              value={closed ? "Property management" : "Deck sensor · A2"}
             />
           </dl>
         </div>
@@ -176,10 +222,6 @@ function MetaItem({
       </dd>
     </div>
   );
-}
-
-function capConfidence(c: PoolStatus["confidence"]) {
-  return c.charAt(0).toUpperCase() + c.slice(1);
 }
 
 function trendLabel(t: PoolStatus["trend"]) {
