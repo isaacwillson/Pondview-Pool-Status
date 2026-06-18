@@ -20,17 +20,61 @@ interface LiveConditionsProps {
   status: PoolStatus | null;
   conditions: PoolConditions | null;
   adminStatus: AdminPoolStatus | null;
+  isLoading: boolean;
 }
 
 export function LiveConditions({
   status,
   conditions,
   adminStatus,
+  isLoading,
 }: LiveConditionsProps) {
-  if (!status || !conditions) return <LiveConditionsSkeleton />;
+  // Conditions (weather, pool hours) are always present once the snapshot
+  // arrives. If we don't have them yet, we're either loading or the API
+  // hard-failed — show the loading skeleton in either case.
+  if (!conditions) return <LiveConditionsSkeleton />;
 
   const closed = adminStatus?.isOpen === false;
-  const occupancyPct = pctFull(status.occupancy, status.capacity);
+  const occupancyPct = status
+    ? pctFull(status.occupancy, status.capacity)
+    : 0;
+
+  // No reading + open → "Awaiting first reading" (or loading shimmer
+  // briefly during the very first fetch).
+  const crowdPrimary = closed
+    ? "Closed"
+    : status
+      ? crowdLabel(status.crowdLevel)
+      : isLoading
+        ? "…"
+        : "Awaiting reading";
+  const crowdSecondary = closed
+    ? adminStatus?.reason ?? "Pool currently closed"
+    : status
+      ? `${occupancyPct}% full`
+      : isLoading
+        ? "Connecting…"
+        : "No readings yet";
+  const crowdAccent: "emerald" | "amber" | "pond" = closed
+    ? "amber"
+    : status
+      ? "emerald"
+      : "pond";
+  const crowdMuted = !closed && !status;
+
+  const trendPrimary = closed
+    ? "—"
+    : status
+      ? trendDisplay(status.trend)
+      : "—";
+  const trendSecondary = closed
+    ? "Unavailable while closed"
+    : status
+      ? trendSubtitle(status.trend)
+      : isLoading
+        ? "Connecting…"
+        : "Available after a few readings";
+  const trendMuted = closed || !status;
 
   return (
     <section aria-labelledby="conditions-heading">
@@ -45,29 +89,24 @@ export function LiveConditions({
         <ConditionCard
           icon={<Users className="h-4 w-4" />}
           label="Crowd Level"
-          primary={closed ? "Closed" : crowdLabel(status.crowdLevel)}
-          secondary={
-            closed
-              ? adminStatus?.reason ?? "Pool currently closed"
-              : `${occupancyPct}% full`
-          }
-          accent={closed ? "amber" : "emerald"}
+          primary={crowdPrimary}
+          secondary={crowdSecondary}
+          accent={crowdAccent}
+          muted={crowdMuted}
         />
         <ConditionCard
           icon={
-            status.trend === "rising" ? (
-              <TrendingUp className="h-4 w-4" />
-            ) : (
+            status?.trend === "falling" ? (
               <TrendingDown className="h-4 w-4" />
+            ) : (
+              <TrendingUp className="h-4 w-4" />
             )
           }
           label="Trend"
-          primary={closed ? "—" : trendDisplay(status.trend)}
-          secondary={
-            closed ? "Unavailable while closed" : trendSubtitle(status.trend)
-          }
-          accent={closed ? "pond" : status.trend === "rising" ? "amber" : "pond"}
-          muted={closed}
+          primary={trendPrimary}
+          secondary={trendSecondary}
+          accent="pond"
+          muted={trendMuted}
         />
         <ConditionCard
           icon={<Thermometer className="h-4 w-4" />}
