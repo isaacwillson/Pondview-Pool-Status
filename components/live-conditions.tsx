@@ -13,17 +13,68 @@ import { Card } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
 import { cn, pctFull } from "@/lib/utils";
 import { crowdLabel } from "@/lib/mock-data";
+import type { AdminPoolStatus } from "@/lib/pool-status";
 import type { PoolConditions, PoolStatus } from "@/lib/types";
 
 interface LiveConditionsProps {
   status: PoolStatus | null;
   conditions: PoolConditions | null;
+  adminStatus: AdminPoolStatus | null;
+  isLoading: boolean;
 }
 
-export function LiveConditions({ status, conditions }: LiveConditionsProps) {
-  if (!status || !conditions) return <LiveConditionsSkeleton />;
+export function LiveConditions({
+  status,
+  conditions,
+  adminStatus,
+  isLoading,
+}: LiveConditionsProps) {
+  // Conditions (weather, pool hours) are always present once the snapshot
+  // arrives. If we don't have them yet, we're either loading or the API
+  // hard-failed — show the loading skeleton in either case.
+  if (!conditions) return <LiveConditionsSkeleton />;
 
-  const occupancyPct = pctFull(status.occupancy, status.capacity);
+  const closed = adminStatus?.isOpen === false;
+  const occupancyPct = status
+    ? pctFull(status.occupancy, status.capacity)
+    : 0;
+
+  // No reading + open → "Awaiting first reading" (or loading shimmer
+  // briefly during the very first fetch).
+  const crowdPrimary = closed
+    ? "Closed"
+    : status
+      ? crowdLabel(status.crowdLevel)
+      : isLoading
+        ? "…"
+        : "Awaiting reading";
+  const crowdSecondary = closed
+    ? adminStatus?.reason ?? "Pool currently closed"
+    : status
+      ? `${occupancyPct}% full`
+      : isLoading
+        ? "Connecting…"
+        : "No readings yet";
+  const crowdAccent: "emerald" | "amber" | "pond" = closed
+    ? "amber"
+    : status
+      ? "emerald"
+      : "pond";
+  const crowdMuted = !closed && !status;
+
+  const trendPrimary = closed
+    ? "—"
+    : status
+      ? trendDisplay(status.trend)
+      : "—";
+  const trendSecondary = closed
+    ? "Unavailable while closed"
+    : status
+      ? trendSubtitle(status.trend)
+      : isLoading
+        ? "Connecting…"
+        : "Available after a few readings";
+  const trendMuted = closed || !status;
 
   return (
     <section aria-labelledby="conditions-heading">
@@ -38,22 +89,24 @@ export function LiveConditions({ status, conditions }: LiveConditionsProps) {
         <ConditionCard
           icon={<Users className="h-4 w-4" />}
           label="Crowd Level"
-          primary={crowdLabel(status.crowdLevel)}
-          secondary={`${occupancyPct}% full`}
-          accent="emerald"
+          primary={crowdPrimary}
+          secondary={crowdSecondary}
+          accent={crowdAccent}
+          muted={crowdMuted}
         />
         <ConditionCard
           icon={
-            status.trend === "rising" ? (
-              <TrendingUp className="h-4 w-4" />
-            ) : (
+            status?.trend === "falling" ? (
               <TrendingDown className="h-4 w-4" />
+            ) : (
+              <TrendingUp className="h-4 w-4" />
             )
           }
           label="Trend"
-          primary={trendDisplay(status.trend)}
-          secondary={trendSubtitle(status.trend)}
-          accent={status.trend === "rising" ? "amber" : "pond"}
+          primary={trendPrimary}
+          secondary={trendSecondary}
+          accent="pond"
+          muted={trendMuted}
         />
         <ConditionCard
           icon={<Thermometer className="h-4 w-4" />}
@@ -73,7 +126,11 @@ export function LiveConditions({ status, conditions }: LiveConditionsProps) {
           icon={<Clock className="h-4 w-4" />}
           label="Pool Hours"
           primary={`${formatHour(conditions.openFrom)} – ${formatHour(conditions.openUntil)}`}
-          secondary={`${hoursLeft(conditions.openUntil)} hours left today`}
+          secondary={
+            closed
+              ? "Currently closed"
+              : `${hoursLeft(conditions.openUntil)} hours left today`
+          }
           accent="pond"
         />
       </div>
@@ -87,6 +144,7 @@ interface ConditionCardProps {
   primary: string;
   secondary: string;
   accent: "emerald" | "amber" | "rose" | "pond";
+  muted?: boolean;
 }
 
 const ACCENT_STYLES = {
@@ -102,6 +160,7 @@ function ConditionCard({
   primary,
   secondary,
   accent,
+  muted,
 }: ConditionCardProps) {
   const s = ACCENT_STYLES[accent];
   return (
@@ -136,7 +195,12 @@ function ConditionCard({
         <p className="mt-5 text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
           {label}
         </p>
-        <p className="mt-1.5 font-display text-3xl font-normal leading-tight tracking-tight text-foreground">
+        <p
+          className={cn(
+            "mt-1.5 font-display text-3xl font-normal leading-tight tracking-tight",
+            muted ? "text-muted-foreground/50" : "text-foreground",
+          )}
+        >
           {primary}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">{secondary}</p>

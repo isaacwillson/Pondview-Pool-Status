@@ -14,8 +14,6 @@ export type CrowdLevel =
   | "busy"
   | "very-busy";
 
-export type Confidence = "low" | "medium" | "high";
-
 export type Trend = "rising" | "steady" | "falling";
 
 export interface PoolStatus {
@@ -27,8 +25,6 @@ export interface PoolStatus {
   capacity: number;
   /** When the underlying sensor reading was taken. */
   lastUpdated: Date;
-  /** Sensor / model confidence in the current reading. */
-  confidence: Confidence;
   /** Direction occupancy is moving over the last ~30 minutes. */
   trend: Trend;
 }
@@ -63,8 +59,12 @@ export interface WeeklyUsage {
 }
 
 export interface PoolDataSnapshot {
-  status: PoolStatus;
+  /** null if no readings have ever arrived from the sensor. */
+  status: PoolStatus | null;
+  /** Static-ish conditions (weather, hours). Always present. */
   conditions: PoolConditions;
-  hourlyActivity: HourlyActivity[];
-  weeklyUsage: WeeklyUsage;
+  /** null if no readings recorded yet for today. */
+  hourlyActivity: HourlyActivity[] | null;
+  /** null if fewer than 7 calendar days of recent readings. */
+  weeklyUsage: WeeklyUsage | null;
 }
