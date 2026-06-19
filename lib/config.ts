@@ -15,7 +15,7 @@ export const POOL_TIMEZONE = "America/New_York";
 
 /** Coordinates used to fetch weather (air temperature, UV index). */
 export const POOL_LAT = 40.898;
-export const POOL_LON = 74.5719;
+export const POOL_LON = -74.5719;
 
 /** Pool open hours in 24-hour local time (used to filter aggregates). */
 export const POOL_OPEN_HOUR = 10;
