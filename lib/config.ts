@@ -11,11 +11,11 @@ export const POOL_CAPACITY = 60;
  * readings into local hours/days so a guest visiting at "8 AM Austin"
  * lands in the 8 AM bucket regardless of the server's clock.
  */
-export const POOL_TIMEZONE = "America/Chicago";
+export const POOL_TIMEZONE = "America/New_York";
 
 /** Coordinates used to fetch weather (air temperature, UV index). */
-export const POOL_LAT = 30.2849;
-export const POOL_LON = -97.7585;
+export const POOL_LAT = 40.898;
+export const POOL_LON = 74.5719;
 
 /** Pool open hours in 24-hour local time (used to filter aggregates). */
 export const POOL_OPEN_HOUR = 10;
