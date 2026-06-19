@@ -15,15 +15,17 @@ import {
   getWeeklyUsage,
 } from "./occupancy-history";
 import type { PoolDataSnapshot, PoolStatus } from "./types";
+import { getWeather } from "./weather";
 
 export async function buildLiveSnapshot(
   now: Date = new Date(),
 ): Promise<PoolDataSnapshot> {
-  const [latest, trend, hourlyActivity, weeklyUsage] = await Promise.all([
+  const [latest, trend, hourlyActivity, weeklyUsage, weather] = await Promise.all([
     getLatestReading(),
     getTrend(),
     getTodayHourlyActivity(),
     getWeeklyUsage(),
+    getWeather(),
   ]);
 
   let status: PoolStatus | null = null;
@@ -38,9 +40,13 @@ export async function buildLiveSnapshot(
     };
   }
 
+  const conditions = buildConditions(now);
+  conditions.airTempF = weather.airTempF;
+  conditions.uvIndex = weather.uvIndex;
+
   return {
     status,
-    conditions: buildConditions(now),
+    conditions,
     hourlyActivity,
     weeklyUsage,
   };
