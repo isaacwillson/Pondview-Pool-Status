@@ -1,4 +1,5 @@
 import { POOL_CAPACITY, POOL_CLOSE_HOUR, POOL_OPEN_HOUR } from "./config";
+import { currentLocalHour } from "./time";
 import type {
   CrowdLevel,
   HourlyActivity,
@@ -68,22 +69,24 @@ export function buildHourlyActivity(): HourlyActivity[] {
 }
 
 /**
- * Build today's conditions. These pieces of the snapshot (weather, hours)
- * aren't yet wired to real sources, so they live here. The pool open/close
- * times come from `lib/config.ts` so changing hours is one edit.
+ * Build today's conditions. The temperature / UV values here are
+ * placeholders — the live snapshot overrides them with Open-Meteo data
+ * (`lib/weather.ts`). Pool open/close are pure integers so they can't
+ * pick up the server's timezone by accident.
  */
 export function buildConditions(now: Date = new Date()): PoolConditions {
-  const openFrom = new Date(now);
-  openFrom.setHours(POOL_OPEN_HOUR, 0, 0, 0);
-  const openUntil = new Date(now);
-  openUntil.setHours(POOL_CLOSE_HOUR, 0, 0, 0);
+  const hoursLeftToday = Math.max(
+    0,
+    Math.round((POOL_CLOSE_HOUR - currentLocalHour(now)) * 10) / 10,
+  );
 
   return {
     airTempF: 84,
     waterTempF: 81,
     uvIndex: 7,
-    openFrom,
-    openUntil,
+    openFromHour: POOL_OPEN_HOUR,
+    openUntilHour: POOL_CLOSE_HOUR,
+    hoursLeftToday,
   };
 }
 

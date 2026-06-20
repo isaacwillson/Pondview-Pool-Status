@@ -9,6 +9,10 @@ import { Badge } from "./ui/badge";
 import { cn, formatRelativeTime, pctFull } from "@/lib/utils";
 import type { PoolStatus } from "@/lib/types";
 import type { AdminPoolStatus } from "@/lib/pool-status";
+import {
+  deriveEffectivePoolStatus,
+  type EffectivePoolStatus,
+} from "@/lib/effective-status";
 import { crowdLabel } from "@/lib/mock-data";
 
 interface HeroStatusProps {
@@ -33,21 +37,29 @@ export function HeroStatus({
   adminStatus,
   isLoading,
 }: HeroStatusProps) {
-  // Refresh relative-time strings.
+  // Refresh relative-time strings and recompute the schedule branch.
   const [, force] = useState(0);
   useEffect(() => {
     const i = setInterval(() => force((x) => x + 1), 30_000);
     return () => clearInterval(i);
   }, []);
 
-  const closed = adminStatus?.isOpen === false;
+  const effective = deriveEffectivePoolStatus(adminStatus);
 
-  if (closed) {
-    return <HeroShell><ClosedHero adminStatus={adminStatus} /></HeroShell>;
+  if (!effective.isOpen) {
+    return (
+      <HeroShell>
+        <ClosedHero effective={effective} />
+      </HeroShell>
+    );
   }
   if (!status) {
     if (isLoading) return <HeroStatusSkeleton />;
-    return <HeroShell><EmptyHero /></HeroShell>;
+    return (
+      <HeroShell>
+        <EmptyHero />
+      </HeroShell>
+    );
   }
   return (
     <HeroShell>
@@ -150,11 +162,16 @@ function LiveHero({ status }: { status: PoolStatus }) {
 // Closed hero — admin has flipped the pool to closed.
 // ---------------------------------------------------------------------------
 
-function ClosedHero({
-  adminStatus,
-}: {
-  adminStatus: AdminPoolStatus | null;
-}) {
+function ClosedHero({ effective }: { effective: EffectivePoolStatus }) {
+  const byAdmin = effective.closedBy === "admin";
+  const badgeLabel = byAdmin ? "Closed by management" : "Outside pool hours";
+  const sourceLabel = byAdmin ? "Status set by" : "Status set by";
+  const sourceValue = byAdmin ? "Property management" : "Pool schedule";
+  const updatedValue =
+    byAdmin && effective.adminStatus?.lastChangedAt
+      ? formatRelativeTime(new Date(effective.adminStatus.lastChangedAt))
+      : "Now";
+
   return (
     <>
       <div className="flex flex-col">
@@ -170,13 +187,13 @@ function ClosedHero({
         </Eyebrow>
         <Headline>Closed</Headline>
         <Subtitle>
-          {adminStatus?.reason ??
+          {effective.closedReason ??
             "The pool is currently closed. Please check back later."}
         </Subtitle>
         <div className="mt-10 flex flex-wrap items-center gap-3">
           <Badge variant="warning" className="gap-1.5 rounded-full px-3 py-1 text-sm">
             <Lock className="h-3.5 w-3.5" />
-            Closed by management
+            {badgeLabel}
           </Badge>
         </div>
       </div>
@@ -198,13 +215,9 @@ function ClosedHero({
           <CapacityBar occupancyPct={0} muted rightCaption="Unavailable" />
         </div>
         <MetaRow
-          updatedValue={
-            adminStatus?.lastChangedAt
-              ? formatRelativeTime(new Date(adminStatus.lastChangedAt))
-              : "—"
-          }
-          sourceLabel="Status set by"
-          sourceValue="Property management"
+          updatedValue={updatedValue}
+          sourceLabel={sourceLabel}
+          sourceValue={sourceValue}
         />
       </div>
     </>

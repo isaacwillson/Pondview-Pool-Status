@@ -67,10 +67,7 @@ function reviveDates(snapshot: PoolDataSnapshot): PoolDataSnapshot {
           lastUpdated: new Date(snapshot.status.lastUpdated),
         }
       : null,
-    conditions: {
-      ...snapshot.conditions,
-      openFrom: new Date(snapshot.conditions.openFrom),
-      openUntil: new Date(snapshot.conditions.openUntil),
-    },
+    // `conditions` is already a plain JSON object — open/close are
+    // hour integers and don't need revival.
   };
 }

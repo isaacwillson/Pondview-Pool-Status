@@ -1,12 +1,24 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Lock, MapPin } from "lucide-react";
 import { LivePulse } from "./live-pulse";
 import { usePoolStatus } from "@/hooks/use-pool-status";
+import { deriveEffectivePoolStatus } from "@/lib/effective-status";
 
 export function SiteHeader() {
   const { status } = usePoolStatus();
-  const closed = status?.isOpen === false;
+  // Re-render once a minute so schedule transitions take effect promptly
+  // (admin status already re-renders this every 3 s via polling).
+  const [, force] = useState(0);
+  useEffect(() => {
+    const i = setInterval(() => force((x) => x + 1), 60_000);
+    return () => clearInterval(i);
+  }, []);
+  const effective = deriveEffectivePoolStatus(status);
+  const closed = !effective.isOpen;
+  const closedByAdmin = effective.closedBy === "admin";
+  const closedLabel = closedByAdmin ? "Closed by management" : "Outside pool hours";
   return (
     <header className="sticky top-0 z-40 border-b border-border/50 bg-background/70 backdrop-blur-xl">
       <div className="container flex h-16 items-center justify-between">
@@ -44,7 +56,7 @@ export function SiteHeader() {
                 className="inline-flex h-1.5 w-1.5 rounded-full bg-amber-500"
                 aria-hidden
               />
-              <span className="hidden sm:inline">Closed by management</span>
+              <span className="hidden sm:inline">{closedLabel}</span>
               <Lock className="h-3 w-3 sm:hidden" />
             </>
           ) : (
