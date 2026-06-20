@@ -1,35 +1,49 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, LogOut } from "lucide-react";
+import { Check, Clock, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { LivePulse } from "@/components/live-pulse";
 import { formatRelativeTime } from "@/lib/utils";
+import {
+  deriveEffectivePoolStatus,
+  type EffectivePoolStatus,
+} from "@/lib/effective-status";
+import { POOL_CLOSE_HOUR, POOL_OPEN_HOUR } from "@/lib/config";
+import { formatHourLabel } from "@/lib/time";
 import type { AdminPoolStatus } from "@/lib/pool-status";
 
 interface AdminPoolControlsProps {
   initial: AdminPoolStatus;
 }
 
+const SCHEDULE_LINE = `Normal hours: ${formatHourLabel(POOL_OPEN_HOUR)} – ${formatHourLabel(POOL_CLOSE_HOUR)} every day.`;
+
 export function AdminPoolControls({ initial }: AdminPoolControlsProps) {
-  const [isOpen, setIsOpen] = useState(initial.isOpen);
+  // `forceClose` is the admin's only knob; default off. Internally still
+  // serialises as `isOpen` for the existing /api/pool-status contract:
+  //   forceClose = false  →  isOpen = true   (no override; schedule decides)
+  //   forceClose = true   →  isOpen = false  (closed regardless of time)
+  const [forceClose, setForceClose] = useState(!initial.isOpen);
   const [reason, setReason] = useState(initial.reason ?? "");
   const [saved, setSaved] = useState<AdminPoolStatus>(initial);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [savedAt, setSavedAt] = useState<number>(0);
 
-  // Bump the relative-time stamp every 30s
+  // Tick the schedule-driven derivation once a minute so the status pill
+  // flips at the open/close boundaries without needing a manual refresh.
   const [, force] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => force((x) => x + 1), 30_000);
+    const t = setInterval(() => force((x) => x + 1), 60_000);
     return () => clearInterval(t);
   }, []);
 
   const dirty =
-    isOpen !== saved.isOpen || (reason.trim() || null) !== saved.reason;
+    forceClose !== !saved.isOpen ||
+    (reason.trim() || null) !== saved.reason;
 
   async function handleSave() {
     setSubmitting(true);
@@ -38,7 +52,10 @@ export function AdminPoolControls({ initial }: AdminPoolControlsProps) {
       const res = await fetch("/api/pool-status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isOpen, reason: reason.trim() || null }),
+        body: JSON.stringify({
+          isOpen: !forceClose,
+          reason: reason.trim() || null,
+        }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -46,6 +63,7 @@ export function AdminPoolControls({ initial }: AdminPoolControlsProps) {
       }
       const updated: AdminPoolStatus = await res.json();
       setSaved(updated);
+      setForceClose(!updated.isOpen);
       setReason(updated.reason ?? "");
       setSavedAt(Date.now());
     } catch (e) {
@@ -60,52 +78,41 @@ export function AdminPoolControls({ initial }: AdminPoolControlsProps) {
     window.location.href = "/admin/login";
   }
 
-  const lastChanged = saved.lastChangedAt
-    ? new Date(saved.lastChangedAt)
-    : null;
+  const effective = deriveEffectivePoolStatus(saved);
 
   return (
     <div className="space-y-6">
-      {/* Status pill */}
-      <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-white/60 p-4">
-        <div className="flex items-center gap-3">
-          <LivePulse color={saved.isOpen ? "emerald" : "amber"} />
-          <div>
-            <p className="text-sm font-medium text-foreground">
-              Currently {saved.isOpen ? "Open" : "Closed"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {lastChanged
-                ? `Last changed ${formatRelativeTime(lastChanged)}`
-                : "Initial default (never changed)"}
-            </p>
-          </div>
-        </div>
-        <Button variant="ghost" size="sm" onClick={handleLogout}>
-          <LogOut className="h-3.5 w-3.5" />
-          Sign out
-        </Button>
-      </div>
+      {/* Effective-state pill: what residents see right now */}
+      <EffectiveStatePill
+        effective={effective}
+        onLogout={handleLogout}
+      />
 
-      {/* Main control card */}
+      {/* Main control card — force-close override */}
       <Card className="p-7">
-        <div className="flex items-center justify-between gap-6">
+        <div className="flex items-start justify-between gap-6">
           <div>
             <label
-              htmlFor="open-switch"
+              htmlFor="force-close-switch"
               className="font-display text-2xl tracking-tight text-foreground"
             >
-              Pool is {isOpen ? "Open" : "Closed"}
+              Force the pool closed
             </label>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              Residents see this change within a few seconds.
+            <p className="mt-1.5 max-w-md text-sm text-muted-foreground">
+              Turn this on to override the schedule and close the pool for
+              maintenance, weather, events, or any other reason. Residents see
+              the change within a few seconds.
+            </p>
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              {SCHEDULE_LINE}
             </p>
           </div>
           <Switch
-            id="open-switch"
-            checked={isOpen}
-            onCheckedChange={setIsOpen}
-            aria-label="Toggle pool open / closed"
+            id="force-close-switch"
+            checked={forceClose}
+            onCheckedChange={setForceClose}
+            aria-label="Force the pool closed"
           />
         </div>
 
@@ -114,16 +121,16 @@ export function AdminPoolControls({ initial }: AdminPoolControlsProps) {
             htmlFor="reason"
             className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground"
           >
-            Reason {isOpen ? "(optional)" : ""}
+            Reason {forceClose ? "(shown to residents)" : "(optional)"}
           </label>
           <textarea
             id="reason"
             value={reason}
             onChange={(e) => setReason(e.target.value.slice(0, 240))}
             placeholder={
-              isOpen
-                ? "e.g. Heated through Sunday"
-                : "e.g. Closed for maintenance until 5 PM"
+              forceClose
+                ? "e.g. Closed for maintenance until 5 PM"
+                : "Only shown when the override is on"
             }
             rows={3}
             className="mt-2 w-full resize-none rounded-xl border border-border bg-secondary/40 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-pond-500 focus:outline-none focus:ring-2 focus:ring-pond-500/20"
@@ -146,6 +153,46 @@ export function AdminPoolControls({ initial }: AdminPoolControlsProps) {
           </Button>
         </div>
       </Card>
+    </div>
+  );
+}
+
+function EffectiveStatePill({
+  effective,
+  onLogout,
+}: {
+  effective: EffectivePoolStatus;
+  onLogout: () => void;
+}) {
+  const open = effective.isOpen;
+  const byAdmin = effective.closedBy === "admin";
+
+  const primary = open
+    ? "Residents currently see: Open"
+    : byAdmin
+      ? "Residents currently see: Closed (by you)"
+      : "Residents currently see: Closed (off-hours)";
+
+  const secondary = open
+    ? `Schedule closes the pool at ${formatHourLabel(POOL_CLOSE_HOUR)}.`
+    : byAdmin && effective.adminStatus?.lastChangedAt
+      ? `Override saved ${formatRelativeTime(new Date(effective.adminStatus.lastChangedAt))}` +
+        (effective.closedReason ? ` · "${effective.closedReason}"` : "")
+      : effective.closedReason ?? "Outside normal hours.";
+
+  return (
+    <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-white/60 p-4">
+      <div className="flex items-center gap-3">
+        <LivePulse color={open ? "emerald" : "amber"} />
+        <div>
+          <p className="text-sm font-medium text-foreground">{primary}</p>
+          <p className="text-xs text-muted-foreground">{secondary}</p>
+        </div>
+      </div>
+      <Button variant="ghost" size="sm" onClick={onLogout}>
+        <LogOut className="h-3.5 w-3.5" />
+        Sign out
+      </Button>
     </div>
   );
 }
