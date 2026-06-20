@@ -36,10 +36,12 @@ export interface PoolConditions {
   waterTempF: number;
   /** UV index, 0–11+. */
   uvIndex: number;
-  /** Pool opening time as a Date for today. */
-  openFrom: Date;
-  /** Pool closing time as a Date for today. */
-  openUntil: Date;
+  /** Hour the pool opens (0–23) in the pool's local time. */
+  openFromHour: number;
+  /** Hour the pool closes (0–23) in the pool's local time. */
+  openUntilHour: number;
+  /** Hours remaining until close today, computed in the pool's timezone. */
+  hoursLeftToday: number;
 }
 
 export interface HourlyActivity {

@@ -13,7 +13,12 @@ import { Card } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
 import { cn, pctFull } from "@/lib/utils";
 import { crowdLabel } from "@/lib/mock-data";
+import {
+  deriveEffectivePoolStatus,
+  type EffectivePoolStatus,
+} from "@/lib/effective-status";
 import type { AdminPoolStatus } from "@/lib/pool-status";
+import { formatHourLabel } from "@/lib/time";
 import type { PoolConditions, PoolStatus } from "@/lib/types";
 
 interface LiveConditionsProps {
@@ -34,7 +39,8 @@ export function LiveConditions({
   // hard-failed — show the loading skeleton in either case.
   if (!conditions) return <LiveConditionsSkeleton />;
 
-  const closed = adminStatus?.isOpen === false;
+  const effective = deriveEffectivePoolStatus(adminStatus);
+  const closed = !effective.isOpen;
   const occupancyPct = status
     ? pctFull(status.occupancy, status.capacity)
     : 0;
@@ -49,7 +55,7 @@ export function LiveConditions({
         ? "…"
         : "Awaiting reading";
   const crowdSecondary = closed
-    ? adminStatus?.reason ?? "Pool currently closed"
+    ? effective.closedReason ?? "Pool currently closed"
     : status
       ? `${occupancyPct}% full`
       : isLoading
@@ -125,12 +131,8 @@ export function LiveConditions({
         <ConditionCard
           icon={<Clock className="h-4 w-4" />}
           label="Pool Hours"
-          primary={`${formatHour(conditions.openFrom)} – ${formatHour(conditions.openUntil)}`}
-          secondary={
-            closed
-              ? "Currently closed"
-              : `${hoursLeft(conditions.openUntil)} hours left today`
-          }
+          primary={`${formatHourLabel(conditions.openFromHour)} – ${formatHourLabel(conditions.openUntilHour)}`}
+          secondary={hoursSecondary(effective, conditions)}
           accent="pond"
         />
       </div>
@@ -270,17 +272,18 @@ function uvLabel(uv: number) {
   return "Extreme";
 }
 
-function formatHour(d: Date) {
-  // "8 AM" / "10 PM" — drop the minutes when they're :00 so the range stays compact.
-  return d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: d.getMinutes() === 0 ? undefined : "2-digit",
-  });
-}
-
-function hoursLeft(end: Date) {
-  const diff = (end.getTime() - Date.now()) / (1000 * 60 * 60);
-  return Math.max(0, Math.round(diff * 10) / 10);
+function hoursSecondary(
+  effective: EffectivePoolStatus,
+  conditions: PoolConditions,
+): string {
+  if (effective.isOpen) {
+    return `${conditions.hoursLeftToday} hours left today`;
+  }
+  if (effective.closedBy === "admin") {
+    return "Closed by management";
+  }
+  // Schedule-driven closure — reuse the helper's friendly reason.
+  return effective.closedReason ?? "Currently closed";
 }
 
 function LiveConditionsSkeleton() {
