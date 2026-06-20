@@ -4,6 +4,8 @@ export function SiteFooter() {
       <div className="container flex items-center justify-center py-10">
         <a
           href="https://pondviewestatesnj.com/contact/"
+          target="_blank" 
+          rel="noopener noreferrer"
           className="text-sm font-medium text-foreground/80 transition-colors hover:text-foreground"
         >
           Leasing Office
