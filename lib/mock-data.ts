@@ -34,6 +34,22 @@ export function crowdLabel(level: CrowdLevel): string {
   }
 }
 
+/** One-sentence resident-facing description that matches the crowd level. */
+export function crowdSubtitle(level: CrowdLevel): string {
+  switch (level) {
+    case "empty":
+      return "The deck is quiet right now — a great time for laps, a sunbath, or a peaceful afternoon by the water.";
+    case "plenty-of-space":
+      return "The pool is comfortably below capacity — a great time for a swim, with room to spread out on the deck.";
+    case "moderate":
+      return "The pool is steadily filling — still easy to find a seat and a stretch of open water.";
+    case "busy":
+      return "The pool is getting crowded — most loungers are taken, though the water still has room.";
+    case "very-busy":
+      return "The pool is at peak — consider coming back later if you want a relaxed visit.";
+  }
+}
+
 /** Short label used in compact UI (e.g. chart axis). */
 export function crowdLabelShort(level: CrowdLevel): string {
   switch (level) {
