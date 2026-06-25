@@ -13,7 +13,7 @@ import {
   deriveEffectivePoolStatus,
   type EffectivePoolStatus,
 } from "@/lib/effective-status";
-import { crowdLabel } from "@/lib/mock-data";
+import { crowdLabel, crowdSubtitle } from "@/lib/mock-data";
 
 interface HeroStatusProps {
   status: PoolStatus | null;
@@ -115,10 +115,7 @@ function LiveHero({ status }: { status: PoolStatus }) {
       <div className="flex flex-col">
         <Eyebrow icon={<LivePulse color={style.dot} />}>Live · Pool Status</Eyebrow>
         <Headline>{crowdLabel(status.crowdLevel)}</Headline>
-        <Subtitle>
-          The pool is comfortably below capacity — a great time for a swim, with
-          room to spread out on the deck.
-        </Subtitle>
+        <Subtitle>{crowdSubtitle(status.crowdLevel)}</Subtitle>
         <div className="mt-10 flex flex-wrap items-center gap-3">
           <Badge variant={style.badge} className="gap-1.5 rounded-full px-3 py-1 text-sm">
             <span aria-hidden>{style.emoji}</span>
