@@ -53,6 +53,16 @@ export interface HourlyActivity {
   label: CrowdLevel;
 }
 
+/** The three time periods the "Best Times to Visit" chart can show. */
+export interface HourlyActivitySet {
+  /** Today's readings so far, hour-by-hour. null if no readings today. */
+  today: HourlyActivity[] | null;
+  /** Yesterday's calendar day, hour-by-hour. null if no data for yesterday. */
+  yesterday: HourlyActivity[] | null;
+  /** Rolling 7-day average per hour-of-day. null if no recent readings. */
+  average: HourlyActivity[] | null;
+}
+
 export interface WeeklyUsage {
   peakDay: { day: string; averageOccupancy: number };
   averageOccupancy: number;
@@ -65,8 +75,8 @@ export interface PoolDataSnapshot {
   status: PoolStatus | null;
   /** Static-ish conditions (weather, hours). Always present. */
   conditions: PoolConditions;
-  /** null if no readings recorded yet for today. */
-  hourlyActivity: HourlyActivity[] | null;
+  /** Three time-period datasets for the chart. null if no readings at all. */
+  hourlyActivity: HourlyActivitySet | null;
   /** null if fewer than 7 calendar days of recent readings. */
   weeklyUsage: WeeklyUsage | null;
 }
