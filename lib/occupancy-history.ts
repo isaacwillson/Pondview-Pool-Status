@@ -109,8 +109,19 @@ export async function getTrend(): Promise<Trend> {
 }
 
 // ---------------------------------------------------------------------------
-// Today's hourly activity (for the chart)
+// Hourly activity (for the chart) — three periods: today, yesterday, 7-day avg
 // ---------------------------------------------------------------------------
+
+/** Turn a set of (hour, avg_pct) rows into a 24-entry HourlyActivity[]. */
+function fillHourly(
+  rows: { hour: number; avg_pct: number }[],
+): HourlyActivity[] {
+  const byHour = new Map(rows.map((r) => [r.hour, Number(r.avg_pct ?? 0)]));
+  return Array.from({ length: 24 }, (_, hour) => {
+    const activity = byHour.get(hour) ?? 0;
+    return { hour, activity, label: activityToCrowdLevel(activity) };
+  });
+}
 
 export async function getTodayHourlyActivity(): Promise<
   HourlyActivity[] | null
@@ -130,17 +141,55 @@ export async function getTodayHourlyActivity(): Promise<
     ORDER BY hour
   `;
   if (rows.length === 0) return null;
+  return fillHourly(rows);
+}
 
-  // Fill missing hours with 0 so the chart renders the full open window.
-  const byHour = new Map(rows.map((r) => [r.hour, Number(r.avg_pct ?? 0)]));
-  return Array.from({ length: 24 }, (_, hour) => {
-    const activity = byHour.get(hour) ?? 0;
-    return {
-      hour,
-      activity,
-      label: activityToCrowdLevel(activity),
-    };
-  });
+export async function getYesterdayHourlyActivity(): Promise<
+  HourlyActivity[] | null
+> {
+  const sql = getSql();
+  if (!sql) return null;
+  await ensureSchema();
+
+  // Yesterday = the full calendar day in pool-local time immediately before
+  // today. Boundaries are converted back to TIMESTAMPTZ so the comparison
+  // against `recorded_at` (UTC instants) works correctly.
+  const rows = await sql<{ hour: number; avg_pct: number }[]>`
+    SELECT
+      EXTRACT(hour FROM recorded_at AT TIME ZONE ${POOL_TIMEZONE})::int AS hour,
+      AVG(occupancy::float / NULLIF(capacity, 0)) AS avg_pct
+    FROM occupancy_readings
+    WHERE recorded_at >= (DATE_TRUNC('day', NOW() AT TIME ZONE ${POOL_TIMEZONE}) - INTERVAL '1 day')
+                          AT TIME ZONE ${POOL_TIMEZONE}
+      AND recorded_at < DATE_TRUNC('day', NOW() AT TIME ZONE ${POOL_TIMEZONE})
+                          AT TIME ZONE ${POOL_TIMEZONE}
+    GROUP BY hour
+    ORDER BY hour
+  `;
+  if (rows.length === 0) return null;
+  return fillHourly(rows);
+}
+
+export async function getAverageHourlyActivity(): Promise<
+  HourlyActivity[] | null
+> {
+  const sql = getSql();
+  if (!sql) return null;
+  await ensureSchema();
+
+  // Rolling 7-day mean per hour-of-day. Same group-by-hour shape so the
+  // chart can render it the same way as today/yesterday.
+  const rows = await sql<{ hour: number; avg_pct: number }[]>`
+    SELECT
+      EXTRACT(hour FROM recorded_at AT TIME ZONE ${POOL_TIMEZONE})::int AS hour,
+      AVG(occupancy::float / NULLIF(capacity, 0)) AS avg_pct
+    FROM occupancy_readings
+    WHERE recorded_at >= NOW() - INTERVAL '7 days'
+    GROUP BY hour
+    ORDER BY hour
+  `;
+  if (rows.length === 0) return null;
+  return fillHourly(rows);
 }
 
 // ---------------------------------------------------------------------------
