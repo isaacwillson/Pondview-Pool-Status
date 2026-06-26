@@ -9,24 +9,47 @@
 import "server-only";
 import { activityToCrowdLevel, buildConditions } from "./mock-data";
 import {
+  getAverageHourlyActivity,
   getLatestReading,
   getTodayHourlyActivity,
   getTrend,
   getWeeklyUsage,
+  getYesterdayHourlyActivity,
 } from "./occupancy-history";
-import type { PoolDataSnapshot, PoolStatus } from "./types";
+import type {
+  HourlyActivitySet,
+  PoolDataSnapshot,
+  PoolStatus,
+} from "./types";
 import { getWeather } from "./weather";
 
 export async function buildLiveSnapshot(
   now: Date = new Date(),
 ): Promise<PoolDataSnapshot> {
-  const [latest, trend, hourlyActivity, weeklyUsage, weather] = await Promise.all([
+  const [
+    latest,
+    trend,
+    today,
+    yesterday,
+    average,
+    weeklyUsage,
+    weather,
+  ] = await Promise.all([
     getLatestReading(),
     getTrend(),
     getTodayHourlyActivity(),
+    getYesterdayHourlyActivity(),
+    getAverageHourlyActivity(),
     getWeeklyUsage(),
     getWeather(),
   ]);
+
+  // Roll the three datasets into one object. If literally none of them have
+  // data, hand the chart `null` so it renders its "Not enough data yet" card.
+  const hourlyActivity: HourlyActivitySet | null =
+    today || yesterday || average
+      ? { today, yesterday, average }
+      : null;
 
   let status: PoolStatus | null = null;
   if (latest) {

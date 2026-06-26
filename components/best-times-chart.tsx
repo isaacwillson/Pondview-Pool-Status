@@ -5,18 +5,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { cn } from "@/lib/utils";
 import { crowdLabelShort } from "@/lib/mock-data";
-import type { CrowdLevel, HourlyActivity } from "@/lib/types";
+import type { CrowdLevel, HourlyActivity, HourlyActivitySet } from "@/lib/types";
 
 interface BestTimesChartProps {
-  data: HourlyActivity[] | null;
+  data: HourlyActivitySet | null;
   isLoading: boolean;
 }
 
-const TABS = [
-  { id: "today", label: "Today" },
-  { id: "yesterday", label: "Yesterday" },
-  { id: "average", label: "Weekly avg." },
-] as const;
+type TabId = "today" | "yesterday" | "average";
+
+const TABS: { id: TabId; label: string; quietestLabel: string }[] = [
+  { id: "today", label: "Today", quietestLabel: "today" },
+  { id: "yesterday", label: "Yesterday", quietestLabel: "yesterday" },
+  { id: "average", label: "Weekly avg.", quietestLabel: "on average" },
+];
 
 const LEVEL_COLOR: Record<CrowdLevel, string> = {
   empty: "from-emerald-200 to-emerald-300",
@@ -34,16 +36,20 @@ const LEGEND: { level: CrowdLevel; swatch: string }[] = [
 ];
 
 export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
-  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("today");
+  const [tab, setTab] = useState<TabId>("today");
 
   if (!data) {
     if (isLoading) return <BestTimesSkeleton />;
     return <BestTimesEmpty />;
   }
 
-  // Show only pool open hours (10 AM – 8 PM)
-  const visible = data.filter((d) => d.hour >= 10 && d.hour <= 20);
-  const currentHour = new Date().getHours();
+  const tabData = data[tab];
+  // Show only pool open hours (10 AM – 8 PM).
+  const visible = tabData?.filter((d) => d.hour >= 10 && d.hour <= 20) ?? [];
+  // Current-hour ring only makes sense on the "today" view.
+  const currentHour = tab === "today" ? new Date().getHours() : -1;
+  const activeTab = TABS.find((t) => t.id === tab)!;
+  const quietest = visible.length ? findQuietest(visible) : null;
 
   return (
     <Card className="overflow-hidden">
@@ -82,7 +88,16 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
       </CardHeader>
 
       <CardContent className="px-7 pb-9 sm:px-9">
-        {/* Chart */}
+        {tabData === null ? (
+          <div className="flex h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-secondary/40 text-center">
+            <p className="font-display text-2xl text-foreground/80">
+              {emptyTabTitle(tab)}
+            </p>
+            <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+              {emptyTabBody(tab)}
+            </p>
+          </div>
+        ) : (
         <div className="relative">
           {/* Y-axis grid lines */}
           <div className="pointer-events-none absolute inset-x-0 top-0 h-[260px]">
@@ -153,6 +168,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
             })}
           </div>
         </div>
+        )}
 
         {/* Legend + best-time suggestion */}
         <div className="mt-8 flex flex-col gap-5 border-t border-border/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
@@ -170,13 +186,43 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
             ))}
           </div>
 
-          <Badge variant="info" className="gap-1.5 rounded-full px-3 py-1 text-xs">
-            Quietest window today · 10–11 AM
-          </Badge>
+          {quietest ? (
+            <Badge variant="info" className="gap-1.5 rounded-full px-3 py-1 text-xs">
+              Quietest window {activeTab.quietestLabel} · {formatHourShort(quietest.hour)}–
+              {formatHourShort(quietest.hour + 1)}
+            </Badge>
+          ) : null}
         </div>
       </CardContent>
     </Card>
   );
+}
+
+/** Find the visible hour with the lowest activity (ties → earliest hour). */
+function findQuietest(visible: HourlyActivity[]): HourlyActivity {
+  return visible.reduce((a, b) => (b.activity < a.activity ? b : a));
+}
+
+function emptyTabTitle(tab: TabId): string {
+  switch (tab) {
+    case "today":
+      return "No readings yet today";
+    case "yesterday":
+      return "No data for yesterday";
+    case "average":
+      return "Not enough data for an average";
+  }
+}
+
+function emptyTabBody(tab: TabId): string {
+  switch (tab) {
+    case "today":
+      return "Today's activity curve will fill in here as the deck sensor reports occupancy throughout the day.";
+    case "yesterday":
+      return "Yesterday's curve will appear once a full day of readings has been recorded.";
+    case "average":
+      return "A 7-day rolling average will appear here after readings have come in for at least a few days.";
+  }
 }
 
 function formatHour(hour: number): string {

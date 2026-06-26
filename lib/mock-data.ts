@@ -124,7 +124,11 @@ export function buildSnapshot(now: Date = new Date()): PoolDataSnapshot {
       trend: "rising",
     },
     conditions: buildConditions(now),
-    hourlyActivity: buildHourlyActivity(),
+    hourlyActivity: {
+      today: buildHourlyActivity(),
+      yesterday: buildHourlyActivity(),
+      average: buildHourlyActivity(),
+    },
     weeklyUsage: {
       peakDay: { day: "Saturday", averageOccupancy: 47 },
       averageOccupancy: 23,
