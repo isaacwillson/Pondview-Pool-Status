@@ -7,24 +7,28 @@ import { AnimatedNumber } from "./animated-number";
 import { Skeleton } from "./ui/skeleton";
 import { Badge } from "./ui/badge";
 import { cn, formatRelativeTime, pctFull } from "@/lib/utils";
-import type { PoolStatus } from "@/lib/types";
+import type { CrowdLevel, HourlyActivity, PoolStatus } from "@/lib/types";
 import type { AdminPoolStatus } from "@/lib/pool-status";
 import {
   deriveEffectivePoolStatus,
   type EffectivePoolStatus,
 } from "@/lib/effective-status";
-import { crowdLabel, crowdSubtitle } from "@/lib/mock-data";
+import { activityToCrowdLevel, crowdLabel, crowdSubtitle } from "@/lib/mock-data";
+import { currentLocalHour, formatHourLabel } from "@/lib/time";
+import { POOL_CLOSE_HOUR, POOL_OPEN_HOUR } from "@/lib/config";
 
 interface HeroStatusProps {
   status: PoolStatus | null;
   adminStatus: AdminPoolStatus | null;
   isLoading: boolean;
+  weeklyAverage: HourlyActivity[] | null;
 }
 
 export function HeroStatus({
   status,
   adminStatus,
   isLoading,
+  weeklyAverage,
 }: HeroStatusProps) {
   // Refresh relative-time strings and recompute the schedule branch.
   const [, force] = useState(0);
@@ -51,8 +55,8 @@ export function HeroStatus({
     );
   }
   return (
-    <HeroShell>
-      <LiveHero status={status} />
+    <HeroShell tint={status.crowdLevel}>
+      <LiveHero status={status} weeklyAverage={weeklyAverage} />
     </HeroShell>
   );
 }
@@ -64,10 +68,19 @@ export function HeroStatus({
 function HeroShell({
   children,
   compact,
+  tint,
 }: {
   children: React.ReactNode;
   compact?: boolean;
+  tint?: CrowdLevel;
 }) {
+  const warmOverlay =
+    tint === "very-busy"
+      ? "bg-amber-100/30"
+      : tint === "busy"
+        ? "bg-amber-50/20"
+        : null;
+
   return (
     <section
       className={cn(
@@ -77,6 +90,15 @@ function HeroShell({
       )}
       aria-labelledby="hero-status-heading"
     >
+      {warmOverlay && (
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-0 transition-colors duration-1000",
+            warmOverlay,
+          )}
+          aria-hidden
+        />
+      )}
       <svg
         className="pointer-events-none absolute -right-12 -top-12 h-72 w-72 text-pond-200/40"
         viewBox="0 0 200 200"
@@ -108,15 +130,24 @@ function HeroShell({
 // Live hero — we have a real sensor reading.
 // ---------------------------------------------------------------------------
 
-function LiveHero({ status }: { status: PoolStatus }) {
+function LiveHero({
+  status,
+  weeklyAverage,
+}: {
+  status: PoolStatus;
+  weeklyAverage: HourlyActivity[] | null;
+}) {
   const occupancyPct = pctFull(status.occupancy, status.capacity);
 
   return (
     <>
-      <div className="flex flex-col lg:pr-8">
-        <Eyebrow icon={<LivePulse />}>Live · Pool Status</Eyebrow>
-        <Headline>{crowdLabel(status.crowdLevel)}</Headline>
-        <Subtitle>{crowdSubtitle(status.crowdLevel)}</Subtitle>
+      <div className="flex flex-col justify-between lg:pr-8">
+        <div>
+          <Eyebrow icon={<LivePulse />}>Live · Pool Status</Eyebrow>
+          <Headline>{crowdLabel(status.crowdLevel)}</Headline>
+          <Subtitle>{crowdSubtitle(status.crowdLevel)}</Subtitle>
+        </div>
+        <QuieterHint weeklyAverage={weeklyAverage} currentLevel={status.crowdLevel} />
       </div>
 
       <div className="flex flex-col justify-between gap-10 lg:pl-8">
@@ -335,6 +366,66 @@ function MetaItem({
       <dd className="mt-1.5 text-base font-medium text-foreground tabular-nums">
         {value}
       </dd>
+    </div>
+  );
+}
+
+const ORDERED_LEVELS: CrowdLevel[] = [
+  "empty",
+  "plenty-of-space",
+  "moderate",
+  "busy",
+  "very-busy",
+];
+
+function getQuieterHint(
+  weeklyAverage: HourlyActivity[],
+  currentLevel: CrowdLevel,
+): string | null {
+  const levelIdx = ORDERED_LEVELS.indexOf(currentLevel);
+  // No hint needed when already calm
+  if (levelIdx < 2) return null;
+
+  const currentHour = Math.floor(currentLocalHour());
+
+  // Future hours within pool operating window with weekly average data
+  const futureHours = weeklyAverage
+    .filter((d) => d.hour > currentHour && d.hour < POOL_CLOSE_HOUR)
+    .sort((a, b) => a.hour - b.hour);
+
+  // First upcoming hour where the average crowd level drops below current
+  const quieterHour = futureHours.find(
+    (d) => ORDERED_LEVELS.indexOf(activityToCrowdLevel(d.activity)) < levelIdx,
+  );
+  if (quieterHour) {
+    return `Typically quieter after ${formatHourLabel(quieterHour.hour)}`;
+  }
+
+  // No quieter window today — check if opening hour is historically calmer
+  const openingAvg = weeklyAverage.find((d) => d.hour === POOL_OPEN_HOUR);
+  if (
+    openingAvg &&
+    ORDERED_LEVELS.indexOf(activityToCrowdLevel(openingAvg.activity)) < levelIdx
+  ) {
+    return `Stays busy through closing — typically quieter right at opening`;
+  }
+
+  return null;
+}
+
+function QuieterHint({
+  weeklyAverage,
+  currentLevel,
+}: {
+  weeklyAverage: HourlyActivity[] | null;
+  currentLevel: CrowdLevel;
+}) {
+  const hint = weeklyAverage ? getQuieterHint(weeklyAverage, currentLevel) : null;
+  if (!hint) return null;
+  return (
+    <div className="flex items-start gap-2.5">
+      <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-pond-400" aria-hidden />
+      <p className="text-sm leading-snug text-foreground/65">{hint}</p>
     </div>
   );
 }
