@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { cn } from "@/lib/utils";
 import { crowdLabelShort } from "@/lib/mock-data";
-import { currentLocalHour } from "@/lib/time";
+import { currentLocalHour, formatHourLabel } from "@/lib/time";
 import type { CrowdLevel, HourlyActivity, HourlyActivitySet } from "@/lib/types";
 
 interface BestTimesChartProps {
@@ -87,7 +87,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
                 "rounded-full px-3.5 py-1.5 text-xs font-medium transition-all",
                 tab === t.id
                   ? "bg-foreground text-background shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
+                  : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
               {t.label}
@@ -137,16 +137,19 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
 
           <div className="relative flex h-[260px] items-end gap-1.5 sm:gap-2">
             {visible.map((bar, i) => {
-              const isCurrent = bar.hour === currentHour;
               const isFuture = tab === "today" && bar.hour > localHour;
               const heightPct = Math.max(4, bar.activity * 100);
               const occupancyPct = Math.round(bar.activity * 100);
+              // For future bars, project height from the weekly average for that hour
+              const avgActivity = data.average?.find((d) => d.hour === bar.hour)?.activity ?? 0;
+              const projectedHeight = Math.max(4, avgActivity * 100);
+              const hasProjection = isFuture && avgActivity > 0;
               return (
                 <div
                   key={bar.hour}
                   className="group relative flex h-full flex-1 flex-col items-center justify-end"
                 >
-                  {/* Tooltip on hover — hidden for future hours (no data yet) */}
+                  {/* Tooltip on hover — hidden for future hours (no confirmed data) */}
                   {!isFuture && (
                     <div
                       className={cn(
@@ -157,7 +160,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
                       )}
                     >
                       <div className="text-[11px] font-medium text-muted-foreground">
-                        {formatHour(bar.hour)}
+                        {formatHourLabel(bar.hour)}
                       </div>
                       <div className="text-sm font-semibold text-foreground tabular-nums">
                         {occupancyPct}% full
@@ -169,18 +172,19 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
                   )}
 
                   {isFuture ? (
-                    // Future hour: ghost placeholder — no data yet
-                    <div
-                      className="w-full rounded-t-sm border-t-2 border-dashed border-emerald-300/70 bg-emerald-50/60"
-                      style={{ height: "100%" }}
-                    />
+                    // Future hour: ghost bar at projected (weekly avg) height — no color meaning
+                    hasProjection ? (
+                      <div
+                        className="w-full rounded-t-sm border-t-2 border-dashed border-foreground/30 bg-foreground/[0.07]"
+                        style={{ height: `${projectedHeight}%`, opacity: 0.8 }}
+                      />
+                    ) : null
                   ) : (
                     <div
                       className={cn(
                         "w-full origin-bottom rounded-t-md bg-gradient-to-t transition-all duration-300",
                         LEVEL_COLOR[bar.label],
                         "group-hover:brightness-110",
-                        isCurrent && "ring-2 ring-pond-700 ring-offset-2 ring-offset-card",
                       )}
                       style={{
                         height: `${heightPct}%`,
@@ -202,7 +206,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
                   key={bar.hour}
                   className="flex flex-1 justify-center tabular-nums"
                 >
-                  {showLabel ? formatHourShort(bar.hour) : ""}
+                  {showLabel ? formatHourLabel(bar.hour) : ""}
                 </div>
               );
             })}
@@ -224,12 +228,23 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
                 </span>
               </div>
             ))}
+            {tab === "today" && data.average && (
+              <div className="flex items-center gap-2">
+                <span
+                  className="h-2.5 w-2.5 rounded-sm border border-dashed border-foreground/30 bg-foreground/[0.07]"
+                  aria-hidden
+                />
+                <span className="text-xs text-muted-foreground">
+                  Projected (weekly avg.)
+                </span>
+              </div>
+            )}
           </div>
 
           {quietest ? (
             <Badge variant="info" className="gap-1.5 rounded-full px-3 py-1 text-xs">
-              Quietest window {activeTab.quietestLabel} · {formatHourShort(quietest.hour)}–
-              {formatHourShort(quietest.hour + 1)}
+              Quietest window {activeTab.quietestLabel} · {formatHourLabel(quietest.hour)}–
+              {formatHourLabel(quietest.hour + 1)}
             </Badge>
           ) : null}
         </div>
@@ -265,17 +280,6 @@ function emptyTabBody(tab: TabId): string {
   }
 }
 
-function formatHour(hour: number): string {
-  const period = hour < 12 || hour === 24 ? "AM" : "PM";
-  const h = hour % 12 || 12;
-  return `${h}:00 ${period}`;
-}
-
-function formatHourShort(hour: number): string {
-  const period = hour < 12 || hour === 24 ? "a" : "p";
-  const h = hour % 12 || 12;
-  return `${h}${period}`;
-}
 
 function BestTimesEmpty() {
   return (
