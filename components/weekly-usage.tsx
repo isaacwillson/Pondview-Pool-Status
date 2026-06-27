@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, Crown, Moon, Users } from "lucide-react";
+import { Calendar, Crown, Moon } from "lucide-react";
 import { Card } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
 import { cn, pctFull } from "@/lib/utils";
@@ -33,7 +33,6 @@ export function WeeklyUsageSection({
   }
 
   const peakPct = pctFull(data.peakDay.averageOccupancy, capacity);
-  const avgPct = pctFull(data.averageOccupancy, capacity);
   const quietPct = pctFull(data.quietestTime.averageOccupancy, capacity);
   const popularPct = pctFull(data.mostPopularTime.averageOccupancy, capacity);
 
@@ -50,68 +49,12 @@ export function WeeklyUsageSection({
           This Week’s Usage
         </h2>
         <p className="mt-3 max-w-xl text-base text-muted-foreground">
-          Aggregated trends from the last seven days — helping residents find
-          their preferred rhythm.
+          Aggregated trends from the last seven days — helping you find
+          your preferred rhythm.
         </p>
       </div>
 
-      <div className="mt-8 grid grid-cols-1 gap-4 stagger md:grid-cols-2 xl:grid-cols-4">
-        <AnalyticCard
-          icon={<Crown className="h-4 w-4" />}
-          eyebrow="Peak Day"
-          value={data.peakDay.day}
-          delta={`avg ${peakPct}% full`}
-          chip="Busier than usual"
-          chipTone="warning"
-        >
-          {/* Weekly mini chart inside this card */}
-          <div className="mt-4 flex items-end gap-1.5">
-            {WEEK_BARS.map((b, i) => (
-              <div key={b.day} className="flex flex-1 flex-col items-center gap-1.5">
-                <div
-                  className={cn(
-                    "w-full rounded-sm bg-gradient-to-t",
-                    b.day === "Sat"
-                      ? "from-amber-400 to-amber-300"
-                      : "from-pond-200 to-pond-100",
-                  )}
-                  style={{
-                    height: `${b.value * 56}px`,
-                    animation: `bar-grow 0.8s cubic-bezier(0.16, 1, 0.3, 1) ${
-                      i * 50
-                    }ms both`,
-                    transformOrigin: "bottom",
-                  }}
-                />
-                <span
-                  className={cn(
-                    "text-[10px] uppercase tracking-wider",
-                    b.day === "Sat"
-                      ? "font-semibold text-amber-700"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {b.day}
-                </span>
-              </div>
-            ))}
-          </div>
-        </AnalyticCard>
-
-        <AnalyticCard
-          icon={<Users className="h-4 w-4" />}
-          eyebrow="Average Occupancy"
-          value={`${avgPct}%`}
-          unit="full"
-          delta="across all hours · 7-day mean"
-          chip="Steady"
-          chipTone="info"
-        >
-          <div className="mt-4">
-            <Sparkline points={[18, 21, 19, 24, 22, 27, 25, 23, 26, 23]} />
-          </div>
-        </AnalyticCard>
-
+      <div className="mt-8 grid grid-cols-1 gap-4 stagger md:grid-cols-3">
         <AnalyticCard
           icon={<Moon className="h-4 w-4" />}
           eyebrow="Quietest Time"
@@ -128,6 +71,45 @@ export function WeeklyUsageSection({
             <p className="text-sm leading-snug text-muted-foreground">
               Reliably calm weekday mornings.
             </p>
+          </div>
+        </AnalyticCard>
+
+        <AnalyticCard
+          icon={<Crown className="h-4 w-4" />}
+          eyebrow="Peak Day"
+          value={data.peakDay.day}
+          delta={`avg ${peakPct}% full`}
+          chip="Busier than usual"
+          chipTone="warning"
+        >
+          <div className="mt-4 flex items-end gap-1.5">
+            {WEEK_BARS.map((b, i) => (
+              <div key={b.day} className="flex flex-1 flex-col items-center gap-1.5">
+                <div
+                  className={cn(
+                    "w-full rounded-sm bg-gradient-to-t",
+                    b.day === "Sat"
+                      ? "from-amber-400 to-amber-300"
+                      : "from-pond-200 to-pond-100",
+                  )}
+                  style={{
+                    height: `${b.value * 56}px`,
+                    animation: `bar-grow 0.8s cubic-bezier(0.16, 1, 0.3, 1) ${i * 50}ms both`,
+                    transformOrigin: "bottom",
+                  }}
+                />
+                <span
+                  className={cn(
+                    "text-[10px] uppercase tracking-wider",
+                    b.day === "Sat"
+                      ? "font-semibold text-amber-700"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {b.day}
+                </span>
+              </div>
+            ))}
           </div>
         </AnalyticCard>
 
@@ -217,52 +199,6 @@ function AnalyticCard({
   );
 }
 
-function Sparkline({ points }: { points: number[] }) {
-  const max = Math.max(...points);
-  const min = Math.min(...points);
-  const range = max - min || 1;
-  const w = 100;
-  const h = 36;
-  const step = w / (points.length - 1);
-  const coords = points.map((p, i) => {
-    const x = i * step;
-    const y = h - ((p - min) / range) * (h - 6) - 3;
-    return [x, y] as const;
-  });
-
-  const path = coords
-    .map(([x, y], i) => (i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`))
-    .join(" ");
-
-  const fillPath = `${path} L ${w} ${h} L 0 ${h} Z`;
-
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-9 w-full" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="sparkfill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgb(53 118 150)" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="rgb(53 118 150)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={fillPath} fill="url(#sparkfill)" />
-      <path
-        d={path}
-        fill="none"
-        stroke="rgb(48 97 126)"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
-      <circle
-        cx={coords[coords.length - 1][0]}
-        cy={coords[coords.length - 1][1]}
-        r="2"
-        fill="rgb(48 97 126)"
-      />
-    </svg>
-  );
-}
 
 function WeeklyUsageEmpty() {
   return (
@@ -283,8 +219,8 @@ function WeeklyUsageEmpty() {
         </p>
       </div>
 
-      <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
           <Card
             key={i}
             className="flex flex-col items-center justify-center border-dashed bg-secondary/30 p-8 text-center"
@@ -309,8 +245,8 @@ function WeeklyUsageSkeleton() {
         <Skeleton className="h-4 w-32" />
         <Skeleton className="h-9 w-72" />
       </div>
-      <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
           <Card key={i} className="p-6">
             <Skeleton className="h-8 w-8 rounded-lg" />
             <Skeleton className="mt-5 h-3 w-24" />
