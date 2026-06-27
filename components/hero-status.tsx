@@ -55,7 +55,7 @@ export function HeroStatus({
     );
   }
   return (
-    <HeroShell tint={status.crowdLevel}>
+    <HeroShell>
       <LiveHero status={status} weeklyAverage={weeklyAverage} />
     </HeroShell>
   );
@@ -68,18 +68,12 @@ export function HeroStatus({
 function HeroShell({
   children,
   compact,
-  tint,
 }: {
   children: React.ReactNode;
   compact?: boolean;
   tint?: CrowdLevel;
 }) {
-  const warmOverlay =
-    tint === "very-busy"
-      ? "bg-amber-100/30"
-      : tint === "busy"
-        ? "bg-amber-50/20"
-        : null;
+
 
   return (
     <section
@@ -90,15 +84,7 @@ function HeroShell({
       )}
       aria-labelledby="hero-status-heading"
     >
-      {warmOverlay && (
-        <div
-          className={cn(
-            "pointer-events-none absolute inset-0 transition-colors duration-1000",
-            warmOverlay,
-          )}
-          aria-hidden
-        />
-      )}
+      
       <svg
         className="pointer-events-none absolute -right-12 -top-12 h-72 w-72 text-pond-200/40"
         viewBox="0 0 200 200"
