@@ -19,7 +19,7 @@ export default function HomePage() {
 
       <main className="container pb-12 pt-8 sm:pt-10">
         {/* Eyebrow + hero — tight pairing so the resident sees status above the fold */}
-        <div className="space-y-6 sm:space-y-7">
+        <div className="space-y-4 sm:space-y-5">
           <div className="max-w-2xl animate-fade-in">
             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Resident Amenities · Live
