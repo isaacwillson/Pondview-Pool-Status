@@ -93,7 +93,9 @@ function HeroShell({
       <div
         className={cn(
           "relative grid gap-12 p-8 sm:p-12 lg:p-16",
-          compact ? "lg:grid-cols-1" : "lg:grid-cols-[1.1fr_0.9fr]",
+          compact
+            ? "lg:grid-cols-1"
+            : "lg:grid-cols-[1.1fr_0.9fr] lg:gap-0 lg:divide-x lg:divide-border/50",
         )}
       >
         {children}
@@ -111,13 +113,13 @@ function LiveHero({ status }: { status: PoolStatus }) {
 
   return (
     <>
-      <div className="flex flex-col">
+      <div className="flex flex-col lg:pr-8">
         <Eyebrow icon={<LivePulse />}>Live · Pool Status</Eyebrow>
         <Headline>{crowdLabel(status.crowdLevel)}</Headline>
         <Subtitle>{crowdSubtitle(status.crowdLevel)}</Subtitle>
       </div>
 
-      <div className="flex flex-col justify-between gap-10">
+      <div className="flex flex-col justify-between gap-10 lg:pl-8">
         <div>
           <SmallLabel>Estimated Occupancy</SmallLabel>
           <div className="mt-4 flex items-baseline gap-3">
@@ -251,7 +253,7 @@ function Headline({ children }: { children: React.ReactNode }) {
 
 function Subtitle({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mt-6 max-w-md text-lg leading-relaxed text-muted-foreground text-balance">
+    <p className="mt-6 max-w-md text-lg leading-relaxed text-foreground/65 text-balance">
       {children}
     </p>
   );
