@@ -10,7 +10,11 @@
       "Bash(git check-ignore *)",
       "Bash(echo \"exit=$?\")",
       "Bash(git add *)",
-      "Bash(git fetch *)"
+      "Bash(git fetch *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git checkout *)",
+      "Bash(git stash *)"
     ]
   }
 }
