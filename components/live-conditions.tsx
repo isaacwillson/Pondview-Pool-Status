@@ -7,7 +7,6 @@ import {
   TrendingDown,
   TrendingUp,
   Users,
-  Waves,
 } from "lucide-react";
 import { Card } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
@@ -92,6 +91,7 @@ export function LiveConditions({
       />
 
       <div className="mt-8 grid grid-cols-1 gap-4 stagger sm:grid-cols-2 lg:grid-cols-6">
+        {/* Row 1: Crowd + Trend (related pair) */}
         <ConditionCard
           icon={<Users className="h-4 w-4" />}
           label="Crowd Level"
@@ -99,14 +99,6 @@ export function LiveConditions({
           secondary={crowdSecondary}
           accent={crowdAccent}
           muted={crowdMuted}
-          className="sm:col-span-2 lg:col-span-3"
-        />
-        <ConditionCard
-          icon={<Thermometer className="h-4 w-4" />}
-          label="Air Temperature"
-          primary={`${conditions.airTempF}°F`}
-          secondary={`Water ${conditions.waterTempF}°F`}
-          accent="rose"
           className="sm:col-span-2 lg:col-span-3"
         />
         <ConditionCard
@@ -122,7 +114,16 @@ export function LiveConditions({
           secondary={trendSecondary}
           accent="pond"
           muted={trendMuted}
-          className="lg:col-span-2"
+          className="sm:col-span-2 lg:col-span-3"
+        />
+        {/* Row 2: Temperature + UV (related pair) */}
+        <ConditionCard
+          icon={<Thermometer className="h-4 w-4" />}
+          label="Air Temperature"
+          primary={`${conditions.airTempF}°F`}
+          secondary={`Water ${conditions.waterTempF}°F`}
+          accent="rose"
+          className="sm:col-span-2 lg:col-span-3"
         />
         <ConditionCard
           icon={<Sun className="h-4 w-4" />}
@@ -130,15 +131,16 @@ export function LiveConditions({
           primary={`${conditions.uvIndex}`}
           secondary={uvLabel(conditions.uvIndex)}
           accent="amber"
-          className="lg:col-span-2"
+          className="sm:col-span-2 lg:col-span-3"
         />
+        {/* Row 3: Pool Hours — full width anchor */}
         <ConditionCard
           icon={<Clock className="h-4 w-4" />}
           label="Pool Hours"
           primary={`${formatHourLabel(conditions.openFromHour)} – ${formatHourLabel(conditions.openUntilHour)}`}
           secondary={hoursSecondary(effective, conditions)}
           accent="pond"
-          className="sm:col-span-2 lg:col-span-2"
+          className="sm:col-span-2 lg:col-span-6"
         />
       </div>
     </section>
@@ -190,18 +192,15 @@ function ConditionCard({
         aria-hidden
       />
       <div className="relative">
-        <div className="flex items-center justify-between">
-          <span
-            className={cn(
-              "flex h-8 w-8 items-center justify-center rounded-lg",
-              s.iconBg,
-            )}
-            aria-hidden
-          >
-            {icon}
-          </span>
-          <Waves className="h-3.5 w-3.5 text-border" aria-hidden />
-        </div>
+        <span
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-lg",
+            s.iconBg,
+          )}
+          aria-hidden
+        >
+          {icon}
+        </span>
         <p className="mt-5 text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
           {label}
         </p>
@@ -305,9 +304,9 @@ function LiveConditionsSkeleton() {
         {[
           "sm:col-span-2 lg:col-span-3",
           "sm:col-span-2 lg:col-span-3",
-          "lg:col-span-2",
-          "lg:col-span-2",
-          "sm:col-span-2 lg:col-span-2",
+          "sm:col-span-2 lg:col-span-3",
+          "sm:col-span-2 lg:col-span-3",
+          "sm:col-span-2 lg:col-span-6",
         ].map((span, i) => (
           <Card key={i} className={cn("p-5", span)}>
             <Skeleton className="h-8 w-8 rounded-lg" />
