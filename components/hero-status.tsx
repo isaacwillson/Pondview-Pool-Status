@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowUpRight, Clock, Lock, TrendingUp, WifiOff } from "lucide-react";
+import { ArrowUpRight, Clock, Lock, WifiOff } from "lucide-react";
 import { LivePulse } from "./live-pulse";
 import { AnimatedNumber } from "./animated-number";
 import { Skeleton } from "./ui/skeleton";
@@ -20,17 +20,6 @@ interface HeroStatusProps {
   adminStatus: AdminPoolStatus | null;
   isLoading: boolean;
 }
-
-const CROWD_STYLES: Record<
-  string,
-  { dot: "emerald" | "amber" | "rose"; badge: "success" | "warning" | "danger"; emoji: string }
-> = {
-  empty: { dot: "emerald", badge: "success", emoji: "🟢" },
-  "plenty-of-space": { dot: "emerald", badge: "success", emoji: "🟢" },
-  moderate: { dot: "amber", badge: "warning", emoji: "🟡" },
-  busy: { dot: "amber", badge: "warning", emoji: "🟠" },
-  "very-busy": { dot: "rose", badge: "danger", emoji: "🔴" },
-};
 
 export function HeroStatus({
   status,
@@ -118,7 +107,6 @@ function HeroShell({
 // ---------------------------------------------------------------------------
 
 function LiveHero({ status }: { status: PoolStatus }) {
-  const style = CROWD_STYLES[status.crowdLevel] ?? CROWD_STYLES.moderate;
   const occupancyPct = pctFull(status.occupancy, status.capacity);
 
   return (
@@ -127,16 +115,6 @@ function LiveHero({ status }: { status: PoolStatus }) {
         <Eyebrow icon={<LivePulse />}>Live · Pool Status</Eyebrow>
         <Headline>{crowdLabel(status.crowdLevel)}</Headline>
         <Subtitle>{crowdSubtitle(status.crowdLevel)}</Subtitle>
-        <div className="mt-10 flex flex-wrap items-center gap-3">
-          <Badge variant={style.badge} className="gap-1.5 rounded-full px-3 py-1 text-sm">
-            <span aria-hidden>{style.emoji}</span>
-            {crowdLabel(status.crowdLevel)}
-          </Badge>
-          <Badge variant="outline" className="gap-1.5 rounded-full bg-white/60 px-3 py-1 text-sm">
-            <TrendingUp className="h-3.5 w-3.5 text-pond-500" />
-            {trendLabel(status.trend)}
-          </Badge>
-        </div>
       </div>
 
       <div className="flex flex-col justify-between gap-10">
@@ -357,17 +335,6 @@ function MetaItem({
       </dd>
     </div>
   );
-}
-
-function trendLabel(t: PoolStatus["trend"]) {
-  switch (t) {
-    case "rising":
-      return "Getting busier";
-    case "falling":
-      return "Getting quieter";
-    default:
-      return "Steady";
-  }
 }
 
 function HeroStatusSkeleton() {
