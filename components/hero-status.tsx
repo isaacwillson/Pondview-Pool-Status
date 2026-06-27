@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowUpRight, Clock, Lock, TrendingUp, WifiOff } from "lucide-react";
+import { ArrowUpRight, Clock, Lock, WifiOff } from "lucide-react";
 import { LivePulse } from "./live-pulse";
 import { AnimatedNumber } from "./animated-number";
 import { Skeleton } from "./ui/skeleton";
@@ -20,17 +20,6 @@ interface HeroStatusProps {
   adminStatus: AdminPoolStatus | null;
   isLoading: boolean;
 }
-
-const CROWD_STYLES: Record<
-  string,
-  { dot: "emerald" | "amber" | "rose"; badge: "success" | "warning" | "danger"; emoji: string }
-> = {
-  empty: { dot: "emerald", badge: "success", emoji: "🟢" },
-  "plenty-of-space": { dot: "emerald", badge: "success", emoji: "🟢" },
-  moderate: { dot: "amber", badge: "warning", emoji: "🟡" },
-  busy: { dot: "amber", badge: "warning", emoji: "🟠" },
-  "very-busy": { dot: "rose", badge: "danger", emoji: "🔴" },
-};
 
 export function HeroStatus({
   status,
@@ -118,25 +107,14 @@ function HeroShell({
 // ---------------------------------------------------------------------------
 
 function LiveHero({ status }: { status: PoolStatus }) {
-  const style = CROWD_STYLES[status.crowdLevel] ?? CROWD_STYLES.moderate;
   const occupancyPct = pctFull(status.occupancy, status.capacity);
 
   return (
     <>
       <div className="flex flex-col">
-        <Eyebrow icon={<LivePulse color={style.dot} />}>Live · Pool Status</Eyebrow>
+        <Eyebrow icon={<LivePulse />}>Live · Pool Status</Eyebrow>
         <Headline>{crowdLabel(status.crowdLevel)}</Headline>
         <Subtitle>{crowdSubtitle(status.crowdLevel)}</Subtitle>
-        <div className="mt-10 flex flex-wrap items-center gap-3">
-          <Badge variant={style.badge} className="gap-1.5 rounded-full px-3 py-1 text-sm">
-            <span aria-hidden>{style.emoji}</span>
-            {crowdLabel(status.crowdLevel)}
-          </Badge>
-          <Badge variant="outline" className="gap-1.5 rounded-full bg-white/60 px-3 py-1 text-sm">
-            <TrendingUp className="h-3.5 w-3.5 text-pond-500" />
-            {trendLabel(status.trend)}
-          </Badge>
-        </div>
       </div>
 
       <div className="flex flex-col justify-between gap-10">
@@ -287,30 +265,16 @@ function SmallLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function CapacityBar({
-  occupancyPct,
-  muted,
-  rightCaption,
-}: {
-  occupancyPct: number;
-  muted?: boolean;
-  rightCaption?: string;
-}) {
-  const caption = rightCaption ?? `${100 - occupancyPct}% available`;
+function CapacityBar({ occupancyPct }: { occupancyPct: number }) {
   return (
     <div className="mt-7">
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span className="font-medium uppercase tracking-[0.15em]">Capacity</span>
-        <span className="tabular-nums">{caption}</span>
+        <span className="tabular-nums">{100 - occupancyPct}% available</span>
       </div>
-      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-pond-100/70">
+      <div className="mt-2.5 h-2.5 w-full overflow-hidden rounded-full bg-pond-200/60 ring-1 ring-inset ring-pond-300/30">
         <div
-          className={cn(
-            "h-full rounded-full transition-[width] duration-1000 ease-out",
-            muted
-              ? "bg-muted-foreground/20"
-              : "bg-gradient-to-r from-pond-400 to-pond-600",
-          )}
+          className="h-full rounded-full bg-gradient-to-r from-pond-400 to-pond-600 transition-[width] duration-1000 ease-out"
           style={{ width: `${occupancyPct}%` }}
         />
       </div>
@@ -371,17 +335,6 @@ function MetaItem({
       </dd>
     </div>
   );
-}
-
-function trendLabel(t: PoolStatus["trend"]) {
-  switch (t) {
-    case "rising":
-      return "Getting busier";
-    case "falling":
-      return "Getting quieter";
-    default:
-      return "Steady";
-  }
 }
 
 function HeroStatusSkeleton() {

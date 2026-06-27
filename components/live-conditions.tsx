@@ -91,7 +91,7 @@ export function LiveConditions({
         id="conditions-heading"
       />
 
-      <div className="mt-8 grid grid-cols-1 gap-4 stagger sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-8 grid grid-cols-1 gap-4 stagger sm:grid-cols-2 lg:grid-cols-6">
         <ConditionCard
           icon={<Users className="h-4 w-4" />}
           label="Crowd Level"
@@ -99,6 +99,15 @@ export function LiveConditions({
           secondary={crowdSecondary}
           accent={crowdAccent}
           muted={crowdMuted}
+          className="sm:col-span-2 lg:col-span-3"
+        />
+        <ConditionCard
+          icon={<Thermometer className="h-4 w-4" />}
+          label="Air Temperature"
+          primary={`${conditions.airTempF}°F`}
+          secondary={`Water ${conditions.waterTempF}°F`}
+          accent="rose"
+          className="sm:col-span-2 lg:col-span-3"
         />
         <ConditionCard
           icon={
@@ -113,13 +122,7 @@ export function LiveConditions({
           secondary={trendSecondary}
           accent="pond"
           muted={trendMuted}
-        />
-        <ConditionCard
-          icon={<Thermometer className="h-4 w-4" />}
-          label="Air Temperature"
-          primary={`${conditions.airTempF}°F`}
-          secondary={`Water ${conditions.waterTempF}°F`}
-          accent="rose"
+          className="lg:col-span-2"
         />
         <ConditionCard
           icon={<Sun className="h-4 w-4" />}
@@ -127,6 +130,7 @@ export function LiveConditions({
           primary={`${conditions.uvIndex}`}
           secondary={uvLabel(conditions.uvIndex)}
           accent="amber"
+          className="lg:col-span-2"
         />
         <ConditionCard
           icon={<Clock className="h-4 w-4" />}
@@ -134,6 +138,7 @@ export function LiveConditions({
           primary={`${formatHourLabel(conditions.openFromHour)} – ${formatHourLabel(conditions.openUntilHour)}`}
           secondary={hoursSecondary(effective, conditions)}
           accent="pond"
+          className="sm:col-span-2 lg:col-span-2"
         />
       </div>
     </section>
@@ -147,6 +152,7 @@ interface ConditionCardProps {
   secondary: string;
   accent: "emerald" | "amber" | "rose" | "pond";
   muted?: boolean;
+  className?: string;
 }
 
 const ACCENT_STYLES = {
@@ -163,6 +169,7 @@ function ConditionCard({
   secondary,
   accent,
   muted,
+  className,
 }: ConditionCardProps) {
   const s = ACCENT_STYLES[accent];
   return (
@@ -170,6 +177,7 @@ function ConditionCard({
       className={cn(
         "group relative overflow-hidden p-5 transition-all duration-300",
         "hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(20,37,49,0.04),0_18px_36px_-18px_rgba(20,37,49,0.18)]",
+        className,
       )}
     >
       <div
@@ -293,9 +301,15 @@ function LiveConditionsSkeleton() {
         <Skeleton className="h-4 w-32" />
         <Skeleton className="h-9 w-72" />
       </div>
-      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Card key={i} className="p-5">
+      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+        {[
+          "sm:col-span-2 lg:col-span-3",
+          "sm:col-span-2 lg:col-span-3",
+          "lg:col-span-2",
+          "lg:col-span-2",
+          "sm:col-span-2 lg:col-span-2",
+        ].map((span, i) => (
+          <Card key={i} className={cn("p-5", span)}>
             <Skeleton className="h-8 w-8 rounded-lg" />
             <Skeleton className="mt-5 h-3 w-24" />
             <Skeleton className="mt-2 h-7 w-32" />
