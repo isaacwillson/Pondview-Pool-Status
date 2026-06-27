@@ -84,7 +84,7 @@ export function LiveConditions({
   return (
     <section aria-labelledby="conditions-heading">
       <SectionHeading
-        eyebrow="At the pool right now"
+        eyebrow=""
         title="Live Pool Conditions"
         subtitle="Updated continuously from on-site sensors."
         id="conditions-heading"
