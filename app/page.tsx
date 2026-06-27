@@ -35,6 +35,7 @@ export default function HomePage() {
               status={data?.status ?? null}
               adminStatus={adminStatus}
               isLoading={isLoading}
+              weeklyAverage={data?.hourlyActivity?.average ?? null}
             />
           </div>
         </div>
