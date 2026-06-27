@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Lock, MapPin } from "lucide-react";
+import { Lock } from "lucide-react";
 import { LivePulse } from "./live-pulse";
 import { usePoolStatus } from "@/hooks/use-pool-status";
 import { deriveEffectivePoolStatus } from "@/lib/effective-status";
@@ -81,8 +81,7 @@ export function SiteHeader() {
           ) : (
             <>
               <LivePulse size="sm" />
-              <span className="hidden sm:inline">Live · Deck Sensor A2</span>
-              <MapPin className="h-3 w-3 sm:hidden" />
+              <span>Open</span>
             </>
           )}
         </div>
