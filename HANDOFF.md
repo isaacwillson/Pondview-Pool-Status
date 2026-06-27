@@ -68,11 +68,20 @@ app/                       Next.js App Router
 
 components/
   hero-status.tsx          The big "X% full" hero. Three render paths via early returns:
-                             LiveHero  / ClosedHero / EmptyHero, all wrapped in HeroShell.
-  best-times-chart.tsx     The bar chart with Today/Yesterday/Weekly avg. tabs.
-  live-conditions.tsx      The 5-card row: Crowd, Trend, Air Temp, UV, Pool Hours
-  weekly-usage.tsx         The 4 analytics cards at the bottom
-  site-header.tsx          Top nav + live-status pill (text differs by closedBy source)
+                             LiveHero / ClosedHero / EmptyHero, all wrapped in HeroShell.
+                             ClosedHero + EmptyHero use HeroShell's `compact` (single-column)
+                             layout and have NO "—%" occupancy block — only LiveHero shows the
+                             number + CapacityBar. LiveHero has no decorative pills (removed);
+                             its eyebrow pulse is always green.
+  best-times-chart.tsx     The bar chart with Today/Yesterday/Weekly avg. tabs. Y-axis shows
+                             25/50/75/100% scale; bars have hover tooltips (hour + % full +
+                             crowd label). Card uses warm bg-sand-50.
+  live-conditions.tsx      The 5-card row, on a 6-col lg grid: Crowd + Air Temp are the primary
+                             tier (half-width each), Trend / UV / Pool Hours the secondary row.
+  weekly-usage.tsx         The 4 analytics cards at the bottom (resident-friendly chip copy)
+  site-header.tsx          Top nav + status pill. Open pill reads "Open" (green pulse); closed
+                             pill reads "Closed by management" / "Outside pool hours". Secondary
+                             nav links dim when the pool is closed.
   site-footer.tsx          One link to https://pondviewestatesnj.com/contact/ (target=_blank)
   live-pulse.tsx           The pulsing green dot used for "Live" indicators
   animated-number.tsx      Count-up animation via requestAnimationFrame
@@ -122,7 +131,7 @@ The precedence in `deriveEffectivePoolStatus`:
 
 The admin's `isOpen: true` is **not** an override — it just means "no override." There is no way to force the pool open outside its hours, and that's intentional (per user request).
 
-The two closed states have different copy throughout the UI ("Closed by management" vs "Outside pool hours" / "Closed for the day"). Keep that distinction whenever you add anything closed-state-aware.
+The two closed states have different copy throughout the UI ("Closed by management" vs "Outside pool hours", with the schedule case spelling out "Opens today/tomorrow at 10 AM"). Keep that distinction whenever you add anything closed-state-aware.
 
 ### 5.4 Snapshot composition
 
@@ -180,25 +189,28 @@ In Vercel: **Settings → Environment Variables**. Set the same five there.
 - Open-Meteo weather (air temp + UV, 10-min cache + fallback)
 - Pool Hours card with `hoursLeftToday` computed in pool timezone
 - Dynamic hero subtitle that matches the crowd level (via `crowdSubtitle()`)
-- Custom SVG bar chart "Best Times to Visit" with three tabs (Today / Yesterday / Weekly avg.)
+- Custom bar chart "Best Times to Visit" with three tabs (Today / Yesterday / Weekly avg.), a
+  25/50/75/100% Y-axis scale, and per-bar hover tooltips (hour + % full + crowd label)
 - 4-card "This Week's Usage" with "Not enough data yet" placeholders when < 7 days of data
 - Header pill, hero subtitle, and Pool Hours card all distinguish admin-closed vs schedule-closed
 - `/api/sensor-reading` endpoint ready to receive camera POSTs (auth + validation done; nothing posting to it yet)
 
-### 8.2 Uncommitted at the moment of this handoff
+**UI polish pass (PRs #8–#11, see §9).** A resident-facing design review drove a round of cleanup:
+closed/standby heroes are single-column with no broken-looking "—%"; schedule-closed copy reads
+"Opens today/tomorrow at 10 AM"; system/admin language ("Deck sensor · A2", "Status set by: Pool
+schedule") was stripped; the live indicator is consistently green; LiveHero lost its decorative
+pills; Live Conditions gained a Crowd + Air Temp primary tier; the chart got a Y-axis scale + %
+tooltips + warm background; Insights copy was de-jargoned. If you touch these areas, read the
+relevant PR before "fixing" something back to its old form.
 
-**The chart tab implementation** (Today / Yesterday / Weekly avg.) is on disk **but not yet committed or PRed**. The previous session ran out of tokens before opening the PR. The next session should:
+### 8.2 In flight at the moment of this handoff
 
-1. Verify `git status` shows the five modified files:
-   - `lib/types.ts` (new `HourlyActivitySet` interface)
-   - `lib/occupancy-history.ts` (new `fillHourly` helper + `getYesterdayHourlyActivity` + `getAverageHourlyActivity`)
-   - `lib/pool-data-server.ts` (calls all three in `Promise.all`, composes the set)
-   - `lib/mock-data.ts` (mock fallback returns the new shape)
-   - `components/best-times-chart.tsx` (per-tab data + dynamic "Quietest window" badge + per-tab empty states + current-hour ring only on Today)
-2. Run `npx next build` — should be clean.
-3. Branch off master as e.g. `chart-tabs-by-period`, commit, push, open PR.
+Everything is committed. **PR #11 (`best-times-chart-polish`) is open and awaiting merge** — the
+chart Y-axis/tooltips/warm-bg + Insights copy changes. PRs #8, #9, #10 are already merged to master.
 
-Suggested commit subject: **"Wire Today / Yesterday / Weekly avg chart tabs"**
+The only un-shipped design-review item is the **footer** (Minor): the lone "Leasing Office" link is
+visually orphaned and would benefit from surrounding context (a short label / hours / "Questions?
+Contact us"). Lives in `components/site-footer.tsx`. Discussed with the user; not yet started.
 
 ### 8.3 Not yet implemented
 
@@ -216,8 +228,16 @@ Merged into master so far:
 3. **#4** — Live weather (Open-Meteo)
 4. **#5** — Schedule-driven hours + admin as override (also fixed a timezone bug where Pool Hours rendered as 6 AM – 4 PM)
 5. **#6** — Dynamic hero subtitle keyed to crowd level
+6. **#7** — Wire Today / Yesterday / Weekly avg chart tabs
+7. **#8** — Closed-state cleanup (de-dupe copy, "Opens today/tomorrow at 10 AM", drop "—%", dim nav when closed)
+8. **#9** — Remove system-language leaks ("Deck sensor · A2", "Status set by: Pool schedule"; pill → "Open")
+9. **#10** — Hero + Live Conditions hierarchy (green pulse everywhere, thicker capacity bar, tighter hero spacing, Crowd+Temp primary tier, removed LiveHero pills)
 
-The chart-tabs work is the next PR to open.
+**Open:**
+- **#11** — Best Times chart + Insights polish (Y-axis scale, % tooltips, warm bg, "Busier than usual" copy)
+
+These four polish PRs (#8–#11) came out of a resident-facing design review. The footer item is the
+only review point still untouched (see §8.2).
 
 ---
 
