@@ -5,6 +5,7 @@ import { Lock, MapPin } from "lucide-react";
 import { LivePulse } from "./live-pulse";
 import { usePoolStatus } from "@/hooks/use-pool-status";
 import { deriveEffectivePoolStatus } from "@/lib/effective-status";
+import { cn } from "@/lib/utils";
 
 export function SiteHeader() {
   const { status } = usePoolStatus();
@@ -38,13 +39,31 @@ export function SiteHeader() {
           <a className="transition-colors hover:text-foreground" href="#status">
             Pool
           </a>
-          <a className="transition-colors hover:text-foreground" href="#best-times">
+          <a
+            className={cn(
+              "transition-colors hover:text-foreground",
+              closed && "text-muted-foreground/40",
+            )}
+            href="#best-times"
+          >
             Best Times
           </a>
-          <a className="transition-colors hover:text-foreground" href="#conditions">
+          <a
+            className={cn(
+              "transition-colors hover:text-foreground",
+              closed && "text-muted-foreground/40",
+            )}
+            href="#conditions"
+          >
             Conditions
           </a>
-          <a className="transition-colors hover:text-foreground" href="#insights">
+          <a
+            className={cn(
+              "transition-colors hover:text-foreground",
+              closed && "text-muted-foreground/40",
+            )}
+            href="#insights"
+          >
             Insights
           </a>
         </nav>

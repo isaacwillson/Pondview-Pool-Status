@@ -55,7 +55,7 @@ export function deriveEffectivePoolStatus(
   if (hour < openFromHour) {
     return {
       isOpen: false,
-      closedReason: `Opens at ${formatHourLabel(openFromHour)}`,
+      closedReason: `Opens today at ${formatHourLabel(openFromHour)}`,
       closedBy: "schedule",
       adminStatus,
     };
@@ -63,7 +63,7 @@ export function deriveEffectivePoolStatus(
   if (hour >= openUntilHour) {
     return {
       isOpen: false,
-      closedReason: "Closed for the day",
+      closedReason: `Opens tomorrow at ${formatHourLabel(openFromHour)}`,
       closedBy: "schedule",
       adminStatus,
     };
