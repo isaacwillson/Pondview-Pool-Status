@@ -52,7 +52,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
   const quietest = visible.length ? findQuietest(visible) : null;
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden bg-sand-50">
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4 p-7 sm:p-9">
         <div className="space-y-1.5">
           <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
@@ -98,9 +98,25 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
             </p>
           </div>
         ) : (
-        <div className="relative">
+        <div className="relative pl-9 sm:pl-10">
+          {/* Y-axis scale labels */}
+          <div
+            className="pointer-events-none absolute left-0 top-0 h-[260px] w-9 sm:w-10"
+            aria-hidden
+          >
+            {[0.25, 0.5, 0.75, 1].map((y) => (
+              <span
+                key={y}
+                className="absolute right-2 -translate-y-1/2 text-[10px] font-medium tabular-nums text-muted-foreground"
+                style={{ top: `${(1 - y) * 100}%` }}
+              >
+                {Math.round(y * 100)}%
+              </span>
+            ))}
+          </div>
+
           {/* Y-axis grid lines */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-[260px]">
+          <div className="pointer-events-none absolute inset-y-0 left-9 right-0 top-0 h-[260px] sm:left-10">
             {[0.25, 0.5, 0.75, 1].map((y) => (
               <div
                 key={y}
@@ -114,6 +130,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
             {visible.map((bar, i) => {
               const isCurrent = bar.hour === currentHour;
               const heightPct = Math.max(4, bar.activity * 100);
+              const occupancyPct = Math.round(bar.activity * 100);
               return (
                 <div
                   key={bar.hour}
@@ -131,7 +148,10 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
                     <div className="text-[11px] font-medium text-muted-foreground">
                       {formatHour(bar.hour)}
                     </div>
-                    <div className="text-sm font-semibold text-foreground">
+                    <div className="text-sm font-semibold text-foreground tabular-nums">
+                      {occupancyPct}% full
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
                       {crowdLabelShort(bar.label)}
                     </div>
                   </div>
@@ -153,7 +173,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
             })}
           </div>
 
-          {/* X-axis labels */}
+          {/* X-axis labels — align with bars (skip the y-axis gutter) */}
           <div className="mt-3 flex gap-1.5 text-[11px] text-muted-foreground sm:gap-2">
             {visible.map((bar) => {
               const showLabel = [10, 12, 14, 16, 18, 20].includes(bar.hour);
@@ -239,7 +259,7 @@ function formatHourShort(hour: number): string {
 
 function BestTimesEmpty() {
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden bg-sand-50">
       <CardHeader className="p-7 sm:p-9">
         <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Plan your swim
@@ -270,7 +290,7 @@ const SKELETON_HEIGHTS = [
 
 function BestTimesSkeleton() {
   return (
-    <Card className="p-7 sm:p-9">
+    <Card className="bg-sand-50 p-7 sm:p-9">
       <div className="space-y-4">
         <div className="h-4 w-32 animate-pulse rounded bg-muted/70" />
         <div className="h-8 w-64 animate-pulse rounded bg-muted/70" />
