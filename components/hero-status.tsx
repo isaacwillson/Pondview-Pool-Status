@@ -124,7 +124,7 @@ function LiveHero({ status }: { status: PoolStatus }) {
   return (
     <>
       <div className="flex flex-col">
-        <Eyebrow icon={<LivePulse color={style.dot} />}>Live · Pool Status</Eyebrow>
+        <Eyebrow icon={<LivePulse />}>Live · Pool Status</Eyebrow>
         <Headline>{crowdLabel(status.crowdLevel)}</Headline>
         <Subtitle>{crowdSubtitle(status.crowdLevel)}</Subtitle>
         <div className="mt-10 flex flex-wrap items-center gap-3">
@@ -287,30 +287,16 @@ function SmallLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function CapacityBar({
-  occupancyPct,
-  muted,
-  rightCaption,
-}: {
-  occupancyPct: number;
-  muted?: boolean;
-  rightCaption?: string;
-}) {
-  const caption = rightCaption ?? `${100 - occupancyPct}% available`;
+function CapacityBar({ occupancyPct }: { occupancyPct: number }) {
   return (
     <div className="mt-7">
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span className="font-medium uppercase tracking-[0.15em]">Capacity</span>
-        <span className="tabular-nums">{caption}</span>
+        <span className="tabular-nums">{100 - occupancyPct}% available</span>
       </div>
-      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-pond-100/70">
+      <div className="mt-2.5 h-2.5 w-full overflow-hidden rounded-full bg-pond-200/60 ring-1 ring-inset ring-pond-300/30">
         <div
-          className={cn(
-            "h-full rounded-full transition-[width] duration-1000 ease-out",
-            muted
-              ? "bg-muted-foreground/20"
-              : "bg-gradient-to-r from-pond-400 to-pond-600",
-          )}
+          className="h-full rounded-full bg-gradient-to-r from-pond-400 to-pond-600 transition-[width] duration-1000 ease-out"
           style={{ width: `${occupancyPct}%` }}
         />
       </div>

@@ -17,51 +17,55 @@ export default function HomePage() {
     <>
       <SiteHeader />
 
-      <main className="container space-y-20 pb-12 pt-10 sm:pt-14 lg:space-y-28">
-        {/* Eyebrow context */}
-        <div className="max-w-2xl animate-fade-in">
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Resident Amenities · Live
-          </p>
-          <h2 className="mt-3 font-display text-2xl font-normal italic text-pond-700 sm:text-3xl">
-            The Pondview Pool
-          </h2>
+      <main className="container pb-12 pt-8 sm:pt-10">
+        {/* Eyebrow + hero — tight pairing so the resident sees status above the fold */}
+        <div className="space-y-6 sm:space-y-7">
+          <div className="max-w-2xl animate-fade-in">
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              Resident Amenities · Live
+            </p>
+            <h2 className="mt-3 font-display text-2xl font-normal italic text-pond-700 sm:text-3xl">
+              The Pondview Pool
+            </h2>
+          </div>
+
+          {/* HERO STATUS */}
+          <div id="status" className="scroll-mt-24">
+            <HeroStatus
+              status={data?.status ?? null}
+              adminStatus={adminStatus}
+              isLoading={isLoading}
+            />
+          </div>
         </div>
 
-        {/* HERO STATUS */}
-        <div id="status" className="scroll-mt-24">
-          <HeroStatus
-            status={data?.status ?? null}
-            adminStatus={adminStatus}
-            isLoading={isLoading}
-          />
-        </div>
+        <div className="mt-20 space-y-20 lg:mt-28 lg:space-y-28">
+          {/* BEST TIMES */}
+          <div id="best-times" className="scroll-mt-24">
+            <BestTimesChart
+              data={data?.hourlyActivity ?? null}
+              isLoading={isLoading}
+            />
+          </div>
 
-        {/* BEST TIMES */}
-        <div id="best-times" className="scroll-mt-24">
-          <BestTimesChart
-            data={data?.hourlyActivity ?? null}
-            isLoading={isLoading}
-          />
-        </div>
+          {/* LIVE CONDITIONS */}
+          <div id="conditions" className="scroll-mt-24">
+            <LiveConditions
+              status={data?.status ?? null}
+              conditions={data?.conditions ?? null}
+              adminStatus={adminStatus}
+              isLoading={isLoading}
+            />
+          </div>
 
-        {/* LIVE CONDITIONS */}
-        <div id="conditions" className="scroll-mt-24">
-          <LiveConditions
-            status={data?.status ?? null}
-            conditions={data?.conditions ?? null}
-            adminStatus={adminStatus}
-            isLoading={isLoading}
-          />
-        </div>
-
-        {/* WEEKLY USAGE */}
-        <div id="insights" className="scroll-mt-24">
-          <WeeklyUsageSection
-            data={data?.weeklyUsage ?? null}
-            capacity={data?.status?.capacity ?? null}
-            isLoading={isLoading}
-          />
+          {/* WEEKLY USAGE */}
+          <div id="insights" className="scroll-mt-24">
+            <WeeklyUsageSection
+              data={data?.weeklyUsage ?? null}
+              capacity={data?.status?.capacity ?? null}
+              isLoading={isLoading}
+            />
+          </div>
         </div>
       </main>
 
