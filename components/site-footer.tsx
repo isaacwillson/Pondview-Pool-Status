@@ -7,7 +7,7 @@ export function SiteFooter() {
         <p className="text-sm text-muted-foreground">Questions about the pool?</p>
         <div className="flex items-center gap-5">
           <a
-            href="https://www.google.com/maps/dir/?api=1&destination=40.898,-74.5719"
+            href="https://www.google.com/maps/dir/?api=1&destination=100+Julia+Drive+Wharton+NJ"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-sm font-medium text-foreground/80 transition-colors hover:text-foreground"
