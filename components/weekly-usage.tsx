@@ -61,7 +61,7 @@ export function WeeklyUsageSection({
           eyebrow="Peak Day"
           value={data.peakDay.day}
           delta={`avg ${peakPct}% full`}
-          chip="+18% vs. last week"
+          chip="Busier than usual"
           chipTone="warning"
         >
           {/* Weekly mini chart inside this card */}
@@ -120,9 +120,12 @@ export function WeeklyUsageSection({
           chip="Best for laps"
           chipTone="success"
         >
-          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-border/60 bg-secondary/50 px-3 py-2.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
-            <p className="text-xs text-muted-foreground">
+          <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-border/60 bg-secondary/50 px-3.5 py-3">
+            <span
+              className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500"
+              aria-hidden
+            />
+            <p className="text-sm leading-snug text-muted-foreground">
               Reliably calm weekday mornings.
             </p>
           </div>
@@ -136,9 +139,12 @@ export function WeeklyUsageSection({
           chip="Plan ahead"
           chipTone="warning"
         >
-          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-border/60 bg-secondary/50 px-3 py-2.5">
-            <span className="h-2 w-2 rounded-full bg-amber-500" aria-hidden />
-            <p className="text-xs text-muted-foreground">
+          <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-border/60 bg-secondary/50 px-3.5 py-3">
+            <span
+              className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-500"
+              aria-hidden
+            />
+            <p className="text-sm leading-snug text-muted-foreground">
               Tends to peak Friday–Sunday evenings.
             </p>
           </div>
