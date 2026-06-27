@@ -232,9 +232,7 @@ Merged into master so far:
 7. **#8** — Closed-state cleanup (de-dupe copy, "Opens today/tomorrow at 10 AM", drop "—%", dim nav when closed)
 8. **#9** — Remove system-language leaks ("Deck sensor · A2", "Status set by: Pool schedule"; pill → "Open")
 9. **#10** — Hero + Live Conditions hierarchy (green pulse everywhere, thicker capacity bar, tighter hero spacing, Crowd+Temp primary tier, removed LiveHero pills)
-
-**Open:**
-- **#11** — Best Times chart + Insights polish (Y-axis scale, % tooltips, warm bg, "Busier than usual" copy)
+10. **#11** — Best Times chart + Insights polish (Y-axis scale, % tooltips, warm bg, "Busier than usual" copy)
 
 These four polish PRs (#8–#11) came out of a resident-facing design review. The footer item is the
 only review point still untouched (see §8.2).
