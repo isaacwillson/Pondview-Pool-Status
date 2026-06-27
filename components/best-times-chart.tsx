@@ -65,7 +65,6 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4 p-7 sm:p-9">
         <div className="space-y-1.5">
           <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Plan your swim
           </p>
           <CardTitle className="font-display text-3xl font-normal tracking-tight sm:text-4xl">
             Best Times to Visit
