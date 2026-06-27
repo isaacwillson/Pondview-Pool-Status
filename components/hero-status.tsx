@@ -156,11 +156,7 @@ function LiveHero({ status }: { status: PoolStatus }) {
           </div>
           <CapacityBar occupancyPct={occupancyPct} />
         </div>
-        <MetaRow
-          updatedValue={formatRelativeTime(status.lastUpdated)}
-          sourceLabel="Reading from"
-          sourceValue="Deck sensor · A2"
-        />
+        <MetaRow updatedValue={formatRelativeTime(status.lastUpdated)} />
       </div>
     </>
   );
@@ -173,11 +169,9 @@ function LiveHero({ status }: { status: PoolStatus }) {
 function ClosedHero({ effective }: { effective: EffectivePoolStatus }) {
   const byAdmin = effective.closedBy === "admin";
   const eyebrowLabel = byAdmin ? "Closed by management" : "Outside pool hours";
-  const sourceValue = byAdmin ? "Property management" : "Pool schedule";
-  const updatedValue =
-    byAdmin && effective.adminStatus?.lastChangedAt
-      ? formatRelativeTime(new Date(effective.adminStatus.lastChangedAt))
-      : "Now";
+  const adminUpdatedValue = effective.adminStatus?.lastChangedAt
+    ? formatRelativeTime(new Date(effective.adminStatus.lastChangedAt))
+    : "Now";
 
   return (
     <div className="flex flex-col">
@@ -200,13 +194,15 @@ function ClosedHero({ effective }: { effective: EffectivePoolStatus }) {
         {effective.closedReason ??
           "The pool is currently closed. Please check back later."}
       </Subtitle>
-      <div className="mt-12 max-w-xl">
-        <MetaRow
-          updatedValue={updatedValue}
-          sourceLabel="Status set by"
-          sourceValue={sourceValue}
-        />
-      </div>
+      {byAdmin ? (
+        <div className="mt-12 max-w-xl">
+          <MetaRow
+            updatedValue={adminUpdatedValue}
+            sourceLabel="Status set by"
+            sourceValue="Property management"
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -230,21 +226,13 @@ function EmptyHero() {
       </Eyebrow>
       <Headline>Standing by</Headline>
       <Subtitle>
-        The deck sensor will start reporting occupancy here as soon as it
-        comes online.
+        Live occupancy will appear here as soon as it&apos;s available.
       </Subtitle>
       <div className="mt-10 flex flex-wrap items-center gap-3">
         <Badge variant="outline" className="gap-1.5 rounded-full bg-white/60 px-3 py-1 text-sm">
           <WifiOff className="h-3.5 w-3.5 text-muted-foreground" />
           No readings yet
         </Badge>
-      </div>
-      <div className="mt-12 max-w-xl">
-        <MetaRow
-          updatedValue="—"
-          sourceLabel="Reading from"
-          sourceValue="Deck sensor · A2"
-        />
       </div>
     </div>
   );
@@ -336,21 +324,29 @@ function MetaRow({
   sourceValue,
 }: {
   updatedValue: string;
-  sourceLabel: string;
-  sourceValue: string;
+  sourceLabel?: string;
+  sourceValue?: string;
 }) {
+  const hasSource = sourceLabel && sourceValue;
   return (
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-5 border-t border-border/50 pt-7 sm:grid-cols-2">
+    <dl
+      className={cn(
+        "grid gap-x-6 gap-y-5 border-t border-border/50 pt-7",
+        hasSource ? "grid-cols-2 sm:grid-cols-2" : "grid-cols-1",
+      )}
+    >
       <MetaItem
         icon={<Clock className="h-3.5 w-3.5" />}
         label="Last Updated"
         value={updatedValue}
       />
-      <MetaItem
-        icon={<ArrowUpRight className="h-3.5 w-3.5" />}
-        label={sourceLabel}
-        value={sourceValue}
-      />
+      {hasSource ? (
+        <MetaItem
+          icon={<ArrowUpRight className="h-3.5 w-3.5" />}
+          label={sourceLabel}
+          value={sourceValue}
+        />
+      ) : null}
     </dl>
   );
 }
