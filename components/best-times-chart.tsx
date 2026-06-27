@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { cn } from "@/lib/utils";
 import { crowdLabelShort } from "@/lib/mock-data";
+import { currentLocalHour } from "@/lib/time";
 import type { CrowdLevel, HourlyActivity, HourlyActivitySet } from "@/lib/types";
 
 interface BestTimesChartProps {
@@ -46,10 +47,18 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
   const tabData = data[tab];
   // Show only pool open hours (10 AM – 8 PM).
   const visible = tabData?.filter((d) => d.hour >= 10 && d.hour <= 20) ?? [];
-  // Current-hour ring only makes sense on the "today" view.
-  const currentHour = tab === "today" ? new Date().getHours() : -1;
+  // Current-hour ring only makes sense on the "today" view. Use pool-local
+  // time so this works correctly on the server (UTC) and for non-ET visitors.
+  const localHour = Math.floor(currentLocalHour());
+  const currentHour = tab === "today" ? localHour : -1;
   const activeTab = TABS.find((t) => t.id === tab)!;
-  const quietest = visible.length ? findQuietest(visible) : null;
+  // Only hours that have already started are eligible for "quietest window"
+  // on the Today tab — future hours have activity=0 and would always win.
+  const eligibleForQuietest =
+    tab === "today" ? visible.filter((d) => d.hour <= localHour) : visible;
+  const quietest = eligibleForQuietest.length
+    ? findQuietest(eligibleForQuietest)
+    : null;
 
   return (
     <Card className="overflow-hidden bg-sand-50">
@@ -129,6 +138,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
           <div className="relative flex h-[260px] items-end gap-1.5 sm:gap-2">
             {visible.map((bar, i) => {
               const isCurrent = bar.hour === currentHour;
+              const isFuture = tab === "today" && bar.hour > localHour;
               const heightPct = Math.max(4, bar.activity * 100);
               const occupancyPct = Math.round(bar.activity * 100);
               return (
@@ -136,38 +146,48 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
                   key={bar.hour}
                   className="group relative flex h-full flex-1 flex-col items-center justify-end"
                 >
-                  {/* Tooltip on hover */}
-                  <div
-                    className={cn(
-                      "pointer-events-none absolute -top-2 z-10 -translate-y-full",
-                      "rounded-lg border border-border/60 bg-white px-3 py-2 text-center shadow-lg",
-                      "opacity-0 transition-opacity duration-150 group-hover:opacity-100",
-                      "whitespace-nowrap",
-                    )}
-                  >
-                    <div className="text-[11px] font-medium text-muted-foreground">
-                      {formatHour(bar.hour)}
+                  {/* Tooltip on hover — hidden for future hours (no data yet) */}
+                  {!isFuture && (
+                    <div
+                      className={cn(
+                        "pointer-events-none absolute -top-2 z-10 -translate-y-full",
+                        "rounded-lg border border-border/60 bg-white px-3 py-2 text-center shadow-lg",
+                        "opacity-0 transition-opacity duration-150 group-hover:opacity-100",
+                        "whitespace-nowrap",
+                      )}
+                    >
+                      <div className="text-[11px] font-medium text-muted-foreground">
+                        {formatHour(bar.hour)}
+                      </div>
+                      <div className="text-sm font-semibold text-foreground tabular-nums">
+                        {occupancyPct}% full
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {crowdLabelShort(bar.label)}
+                      </div>
                     </div>
-                    <div className="text-sm font-semibold text-foreground tabular-nums">
-                      {occupancyPct}% full
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {crowdLabelShort(bar.label)}
-                    </div>
-                  </div>
+                  )}
 
-                  <div
-                    className={cn(
-                      "w-full origin-bottom rounded-t-md bg-gradient-to-t transition-all duration-300",
-                      LEVEL_COLOR[bar.label],
-                      "group-hover:brightness-110",
-                      isCurrent && "ring-2 ring-pond-700 ring-offset-2 ring-offset-card",
-                    )}
-                    style={{
-                      height: `${heightPct}%`,
-                      animation: `bar-grow 0.9s cubic-bezier(0.16, 1, 0.3, 1) ${i * 35}ms both`,
-                    }}
-                  />
+                  {isFuture ? (
+                    // Future hour: ghost placeholder — no data yet
+                    <div
+                      className="w-full rounded-t-sm border-t-2 border-dashed border-emerald-300/70 bg-emerald-50/60"
+                      style={{ height: "100%" }}
+                    />
+                  ) : (
+                    <div
+                      className={cn(
+                        "w-full origin-bottom rounded-t-md bg-gradient-to-t transition-all duration-300",
+                        LEVEL_COLOR[bar.label],
+                        "group-hover:brightness-110",
+                        isCurrent && "ring-2 ring-pond-700 ring-offset-2 ring-offset-card",
+                      )}
+                      style={{
+                        height: `${heightPct}%`,
+                        animation: `bar-grow 0.9s cubic-bezier(0.16, 1, 0.3, 1) ${i * 35}ms both`,
+                      }}
+                    />
+                  )}
                 </div>
               );
             })}
