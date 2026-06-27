@@ -48,7 +48,7 @@ export function HeroStatus({
 
   if (!effective.isOpen) {
     return (
-      <HeroShell>
+      <HeroShell compact>
         <ClosedHero effective={effective} />
       </HeroShell>
     );
@@ -56,7 +56,7 @@ export function HeroStatus({
   if (!status) {
     if (isLoading) return <HeroStatusSkeleton />;
     return (
-      <HeroShell>
+      <HeroShell compact>
         <EmptyHero />
       </HeroShell>
     );
@@ -72,7 +72,13 @@ export function HeroStatus({
 // Shell: shared gradient card with the decorative pattern overlay
 // ---------------------------------------------------------------------------
 
-function HeroShell({ children }: { children: React.ReactNode }) {
+function HeroShell({
+  children,
+  compact,
+}: {
+  children: React.ReactNode;
+  compact?: boolean;
+}) {
   return (
     <section
       className={cn(
@@ -95,7 +101,12 @@ function HeroShell({ children }: { children: React.ReactNode }) {
         </defs>
         <rect width="200" height="200" fill="url(#dots)" />
       </svg>
-      <div className="relative grid gap-12 p-8 sm:p-12 lg:grid-cols-[1.1fr_0.9fr] lg:p-16">
+      <div
+        className={cn(
+          "relative grid gap-12 p-8 sm:p-12 lg:p-16",
+          compact ? "lg:grid-cols-1" : "lg:grid-cols-[1.1fr_0.9fr]",
+        )}
+      >
         {children}
       </div>
     </section>
@@ -161,8 +172,7 @@ function LiveHero({ status }: { status: PoolStatus }) {
 
 function ClosedHero({ effective }: { effective: EffectivePoolStatus }) {
   const byAdmin = effective.closedBy === "admin";
-  const badgeLabel = byAdmin ? "Closed by management" : "Outside pool hours";
-  const sourceLabel = byAdmin ? "Status set by" : "Status set by";
+  const eyebrowLabel = byAdmin ? "Closed by management" : "Outside pool hours";
   const sourceValue = byAdmin ? "Property management" : "Pool schedule";
   const updatedValue =
     byAdmin && effective.adminStatus?.lastChangedAt
@@ -170,54 +180,34 @@ function ClosedHero({ effective }: { effective: EffectivePoolStatus }) {
       : "Now";
 
   return (
-    <>
-      <div className="flex flex-col">
-        <Eyebrow
-          icon={
+    <div className="flex flex-col">
+      <Eyebrow
+        icon={
+          byAdmin ? (
+            <Lock className="h-3.5 w-3.5 text-amber-600" aria-hidden />
+          ) : (
             <span
               className="inline-flex h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-white/70"
               aria-hidden
             />
-          }
-        >
-          Currently Closed
-        </Eyebrow>
-        <Headline>Closed</Headline>
-        <Subtitle>
-          {effective.closedReason ??
-            "The pool is currently closed. Please check back later."}
-        </Subtitle>
-        <div className="mt-10 flex flex-wrap items-center gap-3">
-          <Badge variant="warning" className="gap-1.5 rounded-full px-3 py-1 text-sm">
-            <Lock className="h-3.5 w-3.5" />
-            {badgeLabel}
-          </Badge>
-        </div>
-      </div>
-
-      <div className="flex flex-col justify-between gap-10">
-        <div>
-          <SmallLabel>Estimated Occupancy</SmallLabel>
-          <div className="mt-4 flex items-baseline gap-3">
-            <span
-              aria-label="Pool closed"
-              className="font-display text-[clamp(5rem,12vw,8.5rem)] font-normal leading-none tracking-tight text-muted-foreground/50"
-            >
-              —<span className="text-[0.55em] text-muted-foreground/60">%</span>
-            </span>
-            <span className="font-display text-2xl italic text-muted-foreground/50">
-              full
-            </span>
-          </div>
-          <CapacityBar occupancyPct={0} muted rightCaption="Unavailable" />
-        </div>
+          )
+        }
+      >
+        {eyebrowLabel}
+      </Eyebrow>
+      <Headline>Closed</Headline>
+      <Subtitle>
+        {effective.closedReason ??
+          "The pool is currently closed. Please check back later."}
+      </Subtitle>
+      <div className="mt-12 max-w-xl">
         <MetaRow
           updatedValue={updatedValue}
-          sourceLabel={sourceLabel}
+          sourceLabel="Status set by"
           sourceValue={sourceValue}
         />
       </div>
-    </>
+    </div>
   );
 }
 
@@ -227,54 +217,36 @@ function ClosedHero({ effective }: { effective: EffectivePoolStatus }) {
 
 function EmptyHero() {
   return (
-    <>
-      <div className="flex flex-col">
-        <Eyebrow
-          icon={
-            <span
-              className="inline-flex h-2.5 w-2.5 rounded-full bg-muted-foreground/40"
-              aria-hidden
-            />
-          }
-        >
-          Awaiting sensor data
-        </Eyebrow>
-        <Headline>Standing by</Headline>
-        <Subtitle>
-          The deck sensor will start reporting occupancy here as soon as it
-          comes online.
-        </Subtitle>
-        <div className="mt-10 flex flex-wrap items-center gap-3">
-          <Badge variant="outline" className="gap-1.5 rounded-full bg-white/60 px-3 py-1 text-sm">
-            <WifiOff className="h-3.5 w-3.5 text-muted-foreground" />
-            No readings yet
-          </Badge>
-        </div>
+    <div className="flex flex-col">
+      <Eyebrow
+        icon={
+          <span
+            className="inline-flex h-2.5 w-2.5 rounded-full bg-muted-foreground/40"
+            aria-hidden
+          />
+        }
+      >
+        Awaiting sensor data
+      </Eyebrow>
+      <Headline>Standing by</Headline>
+      <Subtitle>
+        The deck sensor will start reporting occupancy here as soon as it
+        comes online.
+      </Subtitle>
+      <div className="mt-10 flex flex-wrap items-center gap-3">
+        <Badge variant="outline" className="gap-1.5 rounded-full bg-white/60 px-3 py-1 text-sm">
+          <WifiOff className="h-3.5 w-3.5 text-muted-foreground" />
+          No readings yet
+        </Badge>
       </div>
-
-      <div className="flex flex-col justify-between gap-10">
-        <div>
-          <SmallLabel>Estimated Occupancy</SmallLabel>
-          <div className="mt-4 flex items-baseline gap-3">
-            <span
-              aria-label="Awaiting sensor data"
-              className="font-display text-[clamp(5rem,12vw,8.5rem)] font-normal leading-none tracking-tight text-muted-foreground/50"
-            >
-              —<span className="text-[0.55em] text-muted-foreground/60">%</span>
-            </span>
-            <span className="font-display text-2xl italic text-muted-foreground/50">
-              full
-            </span>
-          </div>
-          <CapacityBar occupancyPct={0} muted rightCaption="Awaiting data" />
-        </div>
+      <div className="mt-12 max-w-xl">
         <MetaRow
           updatedValue="—"
           sourceLabel="Reading from"
           sourceValue="Deck sensor · A2"
         />
       </div>
-    </>
+    </div>
   );
 }
 
