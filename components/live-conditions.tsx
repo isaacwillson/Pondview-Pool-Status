@@ -114,6 +114,7 @@ export function LiveConditions({
           secondary={trendSecondary}
           accent="pond"
           muted={trendMuted}
+          faded={closed}
           className="lg:col-span-3"
         />
         {/* Row 2: Temperature + UV (related pair) */}
@@ -154,6 +155,8 @@ interface ConditionCardProps {
   secondary: string;
   accent: "emerald" | "amber" | "rose" | "pond";
   muted?: boolean;
+  /** De-emphasize the whole card (e.g. when it carries no info while closed). */
+  faded?: boolean;
   className?: string;
 }
 
@@ -171,6 +174,7 @@ function ConditionCard({
   secondary,
   accent,
   muted,
+  faded,
   className,
 }: ConditionCardProps) {
   const s = ACCENT_STYLES[accent];
@@ -178,7 +182,11 @@ function ConditionCard({
     <Card
       className={cn(
         "group relative overflow-hidden p-5 transition-all duration-300",
-        "hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(20,37,49,0.04),0_18px_36px_-18px_rgba(20,37,49,0.18)]",
+        // Drop the hover lift when faded — a card with no info shouldn't invite interaction.
+        // (Opacity lives on the inner wrapper below: the card itself is a `.stagger`
+        //  child whose fade-in animation would otherwise clobber a card-level opacity.)
+        !faded &&
+          "hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(20,37,49,0.04),0_18px_36px_-18px_rgba(20,37,49,0.18)]",
         className,
       )}
     >
@@ -191,7 +199,7 @@ function ConditionCard({
         )}
         aria-hidden
       />
-      <div className="relative">
+      <div className={cn("relative transition-opacity duration-300", faded && "opacity-50")}>
         <span
           className={cn(
             "flex h-8 w-8 items-center justify-center rounded-lg",
