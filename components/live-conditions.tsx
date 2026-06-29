@@ -73,7 +73,7 @@ export function LiveConditions({
       ? trendDisplay(status.trend)
       : "—";
   const trendSecondary = closed
-    ? "Unavailable while closed"
+    ? "Check back during open hours"
     : status
       ? trendSubtitle(status.trend)
       : isLoading
@@ -90,7 +90,7 @@ export function LiveConditions({
         id="conditions-heading"
       />
 
-      <div className="mt-8 grid grid-cols-1 gap-4 stagger sm:grid-cols-2 lg:grid-cols-6">
+      <div className="mt-8 grid grid-cols-2 gap-4 stagger lg:grid-cols-6">
         {/* Row 1: Crowd + Trend (related pair) */}
         <ConditionCard
           icon={<Users className="h-4 w-4" />}
@@ -99,7 +99,7 @@ export function LiveConditions({
           secondary={crowdSecondary}
           accent={crowdAccent}
           muted={crowdMuted}
-          className="sm:col-span-2 lg:col-span-3"
+          className="lg:col-span-3"
         />
         <ConditionCard
           icon={
@@ -114,7 +114,8 @@ export function LiveConditions({
           secondary={trendSecondary}
           accent="pond"
           muted={trendMuted}
-          className="sm:col-span-2 lg:col-span-3"
+          faded={closed}
+          className="lg:col-span-3"
         />
         {/* Row 2: Temperature + UV (related pair) */}
         <ConditionCard
@@ -123,15 +124,15 @@ export function LiveConditions({
           primary={`${conditions.airTempF}°F`}
           secondary={`Water ${conditions.waterTempF}°F`}
           accent="rose"
-          className="sm:col-span-2 lg:col-span-3"
+          className="lg:col-span-3"
         />
         <ConditionCard
           icon={<Sun className="h-4 w-4" />}
           label="UV Index"
           primary={`${conditions.uvIndex}`}
-          secondary={uvLabel(conditions.uvIndex)}
+          secondary={uvSecondary(conditions.uvIndex)}
           accent="amber"
-          className="sm:col-span-2 lg:col-span-3"
+          className="lg:col-span-3"
         />
         {/* Row 3: Pool Hours — full width anchor */}
         <ConditionCard
@@ -140,7 +141,7 @@ export function LiveConditions({
           primary={`${formatHourLabel(conditions.openFromHour)} – ${formatHourLabel(conditions.openUntilHour)}`}
           secondary={hoursSecondary(effective, conditions)}
           accent="pond"
-          className="sm:col-span-2 lg:col-span-6"
+          className="col-span-2 lg:col-span-6"
         />
       </div>
     </section>
@@ -154,6 +155,8 @@ interface ConditionCardProps {
   secondary: string;
   accent: "emerald" | "amber" | "rose" | "pond";
   muted?: boolean;
+  /** De-emphasize the whole card (e.g. when it carries no info while closed). */
+  faded?: boolean;
   className?: string;
 }
 
@@ -171,6 +174,7 @@ function ConditionCard({
   secondary,
   accent,
   muted,
+  faded,
   className,
 }: ConditionCardProps) {
   const s = ACCENT_STYLES[accent];
@@ -178,7 +182,11 @@ function ConditionCard({
     <Card
       className={cn(
         "group relative overflow-hidden p-5 transition-all duration-300",
-        "hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(20,37,49,0.04),0_18px_36px_-18px_rgba(20,37,49,0.18)]",
+        // Drop the hover lift when faded — a card with no info shouldn't invite interaction.
+        // (Opacity lives on the inner wrapper below: the card itself is a `.stagger`
+        //  child whose fade-in animation would otherwise clobber a card-level opacity.)
+        !faded &&
+          "hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(20,37,49,0.04),0_18px_36px_-18px_rgba(20,37,49,0.18)]",
         className,
       )}
     >
@@ -191,7 +199,7 @@ function ConditionCard({
         )}
         aria-hidden
       />
-      <div className="relative">
+      <div className={cn("relative transition-opacity duration-300", faded && "opacity-50")}>
         <span
           className={cn(
             "flex h-8 w-8 items-center justify-center rounded-lg",
@@ -279,6 +287,12 @@ function uvLabel(uv: number) {
   return "Extreme";
 }
 
+/** Sub-label for the UV card — avoids the redundant "0 / Low" pairing. */
+function uvSecondary(uv: number) {
+  if (uv === 0) return "No sun protection needed";
+  return uvLabel(uv);
+}
+
 function hoursSecondary(
   effective: EffectivePoolStatus,
   conditions: PoolConditions,
@@ -300,13 +314,13 @@ function LiveConditionsSkeleton() {
         <Skeleton className="h-4 w-32" />
         <Skeleton className="h-9 w-72" />
       </div>
-      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+      <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-6">
         {[
-          "sm:col-span-2 lg:col-span-3",
-          "sm:col-span-2 lg:col-span-3",
-          "sm:col-span-2 lg:col-span-3",
-          "sm:col-span-2 lg:col-span-3",
-          "sm:col-span-2 lg:col-span-6",
+          "lg:col-span-3",
+          "lg:col-span-3",
+          "lg:col-span-3",
+          "lg:col-span-3",
+          "col-span-2 lg:col-span-6",
         ].map((span, i) => (
           <Card key={i} className={cn("p-5", span)}>
             <Skeleton className="h-8 w-8 rounded-lg" />
