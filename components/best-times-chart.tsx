@@ -39,6 +39,7 @@ const LEGEND: { level: CrowdLevel; swatch: string }[] = [
 export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
   const [tab, setTab] = useState<TabId>("today");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [showLeftFade, setShowLeftFade] = useState(false);
   const [showRightFade, setShowRightFade] = useState(true);
 
   // Hoisted above early returns so all hooks are called unconditionally.
@@ -49,13 +50,14 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
   const updateFade = useCallback(() => {
     if (!scrollRef.current) return;
     const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+    setShowLeftFade(scrollLeft > 4);
     setShowRightFade(scrollLeft < scrollWidth - clientWidth - 4);
   }, []);
 
   useEffect(() => {
     if (!scrollRef.current) return;
-    // 26px min-width per bar + 6px gap-1.5 = 32px per slot
-    const BAR_W = 32;
+    // 26px min-width per bar + 12px gap-3 = 38px per slot
+    const BAR_W = 38;
     if (tab === "today") {
       // Show current bar with ~3 bars of history to the left so ghost bars are visible on the right.
       scrollRef.current.scrollLeft = Math.max(0, (localHour - 10 - 3) * BAR_W);
@@ -128,7 +130,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
           <div className="relative pl-9 sm:pl-10">
             {/* Y-axis scale labels — fixed, outside scroll container */}
             <div
-              className="pointer-events-none absolute left-0 top-0 h-[260px] w-9 sm:w-10"
+              className="pointer-events-none absolute left-0 top-0 h-[320px] w-9 sm:h-[300px] sm:w-10"
               aria-hidden
             >
               {[0.25, 0.5, 0.75, 1].map((y) => (
@@ -143,7 +145,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
             </div>
 
             {/* Y-axis grid lines — fixed horizontal reference, no need to scroll */}
-            <div className="pointer-events-none absolute inset-y-0 left-9 right-0 top-0 h-[260px] sm:left-10">
+            <div className="pointer-events-none absolute inset-y-0 left-9 right-0 top-0 h-[320px] sm:left-10 sm:h-[300px]">
               {[0.25, 0.5, 0.75, 1].map((y) => (
                 <div
                   key={y}
@@ -155,6 +157,13 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
 
             {/* Scrollable bars + x-axis */}
             <div className="relative">
+              {/* Left-edge fade appears once scrolled — signals history to the left */}
+              {showLeftFade && (
+                <div
+                  className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-l from-transparent to-sand-50"
+                  aria-hidden
+                />
+              )}
               {/* Right-edge fade signals there's more content to scroll */}
               {showRightFade && (
                 <div
@@ -167,7 +176,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
                 className="overflow-x-auto no-scrollbar"
                 onScroll={updateFade}
               >
-                <div className="relative flex h-[260px] items-end gap-1.5 sm:gap-2">
+                <div className="relative flex h-[320px] items-end gap-3 sm:h-[300px]">
                   {visible.map((bar, i) => {
                     const isFuture = tab === "today" && bar.hour > localHour;
                     const heightPct = Math.max(4, bar.activity * 100);
@@ -231,7 +240,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
                 </div>
 
                 {/* X-axis labels — inside scroll container to stay aligned with bars */}
-                <div className="mt-3 flex gap-1.5 text-[11px] text-muted-foreground sm:gap-2">
+                <div className="mt-3 flex gap-3 text-[11px] text-muted-foreground">
                   {visible.map((bar) => {
                     const showLabel = [10, 12, 14, 16, 18, 20].includes(bar.hour);
                     return (
