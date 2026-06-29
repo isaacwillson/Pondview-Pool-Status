@@ -40,7 +40,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="mt-20 space-y-20 lg:mt-28 lg:space-y-28">
+        <div className="mt-14 space-y-16 lg:mt-16 lg:space-y-20">
           {/* BEST TIMES */}
           <div id="best-times" className="scroll-mt-24">
             <BestTimesChart

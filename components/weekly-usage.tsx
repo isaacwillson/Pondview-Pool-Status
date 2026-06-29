@@ -48,9 +48,9 @@ export function WeeklyUsageSection({
         >
           This Week’s Usage
         </h2>
-        <p className="mt-3 max-w-xl text-base text-muted-foreground">
-          Aggregated trends from the last seven days — helping you find
-          your preferred rhythm.
+        <p className="mt-3 max-w-2xl text-balance text-base text-muted-foreground">
+          Aggregated trends from the last seven days to help you find your
+          preferred rhythm.
         </p>
       </div>
 
@@ -213,9 +213,9 @@ function WeeklyUsageEmpty() {
         >
           This Week’s Usage
         </h2>
-        <p className="mt-3 max-w-xl text-base text-muted-foreground">
-          Aggregated trends from the last seven days — helping residents find
-          their preferred rhythm.
+        <p className="mt-3 max-w-2xl text-balance text-base text-muted-foreground">
+          Aggregated trends from the last seven days to help you find your
+          preferred rhythm.
         </p>
       </div>
 
