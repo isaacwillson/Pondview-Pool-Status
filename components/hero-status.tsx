@@ -171,91 +171,36 @@ function ClosedHero({ effective }: { effective: EffectivePoolStatus }) {
     : "Now";
 
   return (
-    <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-      <div className="flex flex-col">
-        <Eyebrow
-          icon={
-            byAdmin ? (
-              <Lock className="h-3.5 w-3.5 text-amber-600" aria-hidden />
-            ) : (
-              <span
-                className="inline-flex h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-white/70"
-                aria-hidden
-              />
-            )
-          }
-        >
-          {eyebrowLabel}
-        </Eyebrow>
-        <Headline>Closed</Headline>
-        {/* Reason carries the key "when does it reopen" info — give it weight. */}
-        <p className="mt-6 max-w-md text-balance text-2xl font-medium leading-snug text-foreground sm:text-[1.75rem]">
-          {effective.closedReason ??
-            "The pool is currently closed. Please check back later."}
-        </p>
-        {byAdmin ? (
-          <div className="mt-10 max-w-xl">
-            <MetaRow
-              updatedValue={adminUpdatedValue}
-              sourceLabel="Status set by"
-              sourceValue="Property management"
+    <div className="flex flex-col">
+      <Eyebrow
+        icon={
+          byAdmin ? (
+            <Lock className="h-3.5 w-3.5 text-amber-600" aria-hidden />
+          ) : (
+            <span
+              className="inline-flex h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-white/70"
+              aria-hidden
             />
-          </div>
-        ) : null}
-      </div>
-
-      {/* After-hours illustration fills the otherwise-empty right half on desktop */}
-      <div className="hidden items-center justify-center lg:flex">
-        <ClosedIllustration />
-      </div>
+          )
+        }
+      >
+        {eyebrowLabel}
+      </Eyebrow>
+      <Headline>Closed</Headline>
+      <Subtitle>
+        {effective.closedReason ??
+          "The pool is currently closed. Please check back later."}
+      </Subtitle>
+      {byAdmin ? (
+        <div className="mt-12 max-w-xl">
+          <MetaRow
+            updatedValue={adminUpdatedValue}
+            sourceLabel="Status set by"
+            sourceValue="Property management"
+          />
+        </div>
+      ) : null}
     </div>
-  );
-}
-
-/** Calm "after hours" pool scene — line art matching the brand logo style. */
-function ClosedIllustration() {
-  return (
-    <svg
-      viewBox="0 0 260 200"
-      fill="none"
-      className="h-auto w-full max-w-[300px]"
-      aria-hidden
-    >
-      {/* crescent moon */}
-      <path
-        d="M214 42a22 22 0 1 1-24-22 17 17 0 0 0 24 22Z"
-        className="fill-pond-200/70"
-      />
-      {/* stars */}
-      <g className="fill-pond-300">
-        <circle cx="168" cy="30" r="2" />
-        <circle cx="150" cy="56" r="1.6" />
-        <circle cx="198" cy="74" r="1.6" />
-      </g>
-      {/* pool basin */}
-      <rect x="30" y="98" width="200" height="78" rx="16" className="fill-pond-100" />
-      {/* ladder */}
-      <g
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        className="text-pond-500"
-      >
-        <path d="M184 100V82a7 7 0 0 1 14 0v18" />
-        <path d="M184 88h14" />
-        <path d="M184 94h14" />
-      </g>
-      {/* water waves */}
-      <g
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        className="text-pond-400/70"
-      >
-        <path d="M46 128c8-6 16-6 24 0s16 6 24 0 16-6 24 0 16 6 24 0 16-6 24 0" />
-        <path d="M46 150c8-6 16-6 24 0s16 6 24 0 16-6 24 0 16 6 24 0 16-6 24 0" />
-      </g>
-    </svg>
   );
 }
 

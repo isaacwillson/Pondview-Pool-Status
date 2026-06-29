@@ -17,7 +17,7 @@ import {
   type EffectivePoolStatus,
 } from "@/lib/effective-status";
 import type { AdminPoolStatus } from "@/lib/pool-status";
-import { currentLocalHour, formatHourLabel } from "@/lib/time";
+import { formatHourLabel } from "@/lib/time";
 import type { PoolConditions, PoolStatus } from "@/lib/types";
 
 interface LiveConditionsProps {
@@ -133,10 +133,13 @@ export function LiveConditions({
           accent="amber"
           className="lg:col-span-3"
         />
-        {/* Row 3: Pool Hours — full-width summary with a day timeline */}
-        <PoolHoursCard
-          effective={effective}
-          conditions={conditions}
+        {/* Row 3: Pool Hours — full width anchor */}
+        <ConditionCard
+          icon={<Clock className="h-4 w-4" />}
+          label="Pool Hours"
+          primary={`${formatHourLabel(conditions.openFromHour)} – ${formatHourLabel(conditions.openUntilHour)}`}
+          secondary={hoursSecondary(effective, conditions)}
+          accent="pond"
           className="col-span-2 lg:col-span-6"
         />
       </div>
@@ -210,99 +213,6 @@ function ConditionCard({
           {primary}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">{secondary}</p>
-      </div>
-    </Card>
-  );
-}
-
-/**
- * Full-width Pool Hours card. Carries a horizontal day timeline (open → close)
- * with a "now" marker so the wide slot reads as a deliberate summary rather
- * than an orphaned card.
- */
-function PoolHoursCard({
-  effective,
-  conditions,
-  className,
-}: {
-  effective: EffectivePoolStatus;
-  conditions: PoolConditions;
-  className?: string;
-}) {
-  const s = ACCENT_STYLES.pond;
-  const open = conditions.openFromHour;
-  const close = conditions.openUntilHour;
-  const span = Math.max(1, close - open);
-  const progress = Math.min(1, Math.max(0, (currentLocalHour() - open) / span));
-  const isOpen = effective.isOpen;
-  // Open / midday / close ticks — kept sparse so the labels stay clean.
-  const ticks = [0, 0.5, 1].map((f) => open + f * span);
-
-  return (
-    <Card
-      className={cn(
-        "group relative overflow-hidden p-5 transition-all duration-300",
-        "hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(20,37,49,0.04),0_18px_36px_-18px_rgba(20,37,49,0.18)]",
-        className,
-      )}
-    >
-      <div
-        className={cn(
-          "pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-gradient-radial blur-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100",
-          "bg-gradient-to-br",
-          s.glow,
-          "to-transparent",
-        )}
-        aria-hidden
-      />
-      <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
-        {/* Info block */}
-        <div className="lg:shrink-0">
-          <span
-            className={cn(
-              "flex h-8 w-8 items-center justify-center rounded-lg",
-              s.iconBg,
-            )}
-            aria-hidden
-          >
-            <Clock className="h-4 w-4" />
-          </span>
-          <p className="mt-5 text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
-            Pool Hours
-          </p>
-          <p className="mt-1.5 font-display text-3xl font-normal leading-tight tracking-tight text-foreground">
-            {formatHourLabel(open)} – {formatHourLabel(close)}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {hoursSecondary(effective, conditions)}
-          </p>
-        </div>
-
-        {/* Day timeline */}
-        <div className="w-full lg:max-w-md">
-          <div className="relative h-2.5 rounded-full bg-pond-200/50 ring-1 ring-inset ring-pond-300/30">
-            {isOpen ? (
-              <>
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-pond-400 to-pond-600 transition-[width] duration-1000 ease-out"
-                  style={{ width: `${progress * 100}%` }}
-                />
-                <span
-                  className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-pond-600 bg-white shadow-sm"
-                  style={{ left: `${progress * 100}%` }}
-                  aria-hidden
-                />
-              </>
-            ) : (
-              <div className="h-full rounded-full bg-muted-foreground/15" />
-            )}
-          </div>
-          <div className="mt-2.5 flex justify-between text-[11px] tabular-nums text-muted-foreground">
-            {ticks.map((h, i) => (
-              <span key={i}>{formatHourLabel(Math.round(h))}</span>
-            ))}
-          </div>
-        </div>
       </div>
     </Card>
   );
