@@ -6,7 +6,7 @@ import { Badge } from "./ui/badge";
 import { cn } from "@/lib/utils";
 import { crowdLabelShort } from "@/lib/mock-data";
 import { currentLocalHour, formatHourLabel } from "@/lib/time";
-import { POOL_TIMEZONE } from "@/lib/config";
+import { POOL_CLOSE_HOUR, POOL_OPEN_HOUR, POOL_TIMEZONE } from "@/lib/config";
 import type { CrowdLevel, HourlyActivity, HourlyActivitySet } from "@/lib/types";
 
 interface BestTimesChartProps {
@@ -46,7 +46,13 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
   // Hoisted above early returns so all hooks are called unconditionally.
   const localHour = Math.floor(currentLocalHour());
   const tabData = data?.[tab] ?? null;
-  const visible = tabData?.filter((d) => d.hour >= 10 && d.hour <= 20) ?? [];
+  // Each bar is an hour block [h, h+1). The last valid block starts at the
+  // hour before close (e.g. 7 PM for an 8 PM close); the close hour itself
+  // (the "8 PM–9 PM" block) is past closing, so exclude it.
+  const visible =
+    tabData?.filter(
+      (d) => d.hour >= POOL_OPEN_HOUR && d.hour < POOL_CLOSE_HOUR,
+    ) ?? [];
 
   const updateFade = useCallback(() => {
     if (!scrollRef.current) return;
@@ -61,7 +67,10 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
     const BAR_W = 38;
     if (tab === "today") {
       // Show current bar with ~3 bars of history to the left so ghost bars are visible on the right.
-      scrollRef.current.scrollLeft = Math.max(0, (localHour - 10 - 3) * BAR_W);
+      scrollRef.current.scrollLeft = Math.max(
+        0,
+        (localHour - POOL_OPEN_HOUR - 3) * BAR_W,
+      );
     } else {
       scrollRef.current.scrollLeft = 0;
     }
@@ -247,7 +256,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
                 {/* X-axis labels — inside scroll container to stay aligned with bars */}
                 <div className="mt-3 flex gap-3 text-[11px] text-muted-foreground">
                   {visible.map((bar) => {
-                    const showLabel = [10, 12, 14, 16, 18, 20].includes(bar.hour);
+                    const showLabel = [10, 12, 14, 16, 18].includes(bar.hour);
                     return (
                       <div
                         key={bar.hour}
