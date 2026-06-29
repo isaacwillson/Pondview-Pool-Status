@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { cn } from "@/lib/utils";
@@ -38,19 +38,38 @@ const LEGEND: { level: CrowdLevel; swatch: string }[] = [
 
 export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
   const [tab, setTab] = useState<TabId>("today");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showRightFade, setShowRightFade] = useState(true);
+
+  // Hoisted above early returns so all hooks are called unconditionally.
+  const localHour = Math.floor(currentLocalHour());
+  const tabData = data?.[tab] ?? null;
+  const visible = tabData?.filter((d) => d.hour >= 10 && d.hour <= 20) ?? [];
+
+  const updateFade = useCallback(() => {
+    if (!scrollRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+    setShowRightFade(scrollLeft < scrollWidth - clientWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    // 26px min-width per bar + 6px gap-1.5 = 32px per slot
+    const BAR_W = 32;
+    if (tab === "today") {
+      // Show current bar with ~3 bars of history to the left so ghost bars are visible on the right.
+      scrollRef.current.scrollLeft = Math.max(0, (localHour - 10 - 3) * BAR_W);
+    } else {
+      scrollRef.current.scrollLeft = 0;
+    }
+    requestAnimationFrame(updateFade);
+  }, [tab, localHour, updateFade]);
 
   if (!data) {
     if (isLoading) return <BestTimesSkeleton />;
     return <BestTimesEmpty />;
   }
 
-  const tabData = data[tab];
-  // Show only pool open hours (10 AM – 8 PM).
-  const visible = tabData?.filter((d) => d.hour >= 10 && d.hour <= 20) ?? [];
-  // Current-hour ring only makes sense on the "today" view. Use pool-local
-  // time so this works correctly on the server (UTC) and for non-ET visitors.
-  const localHour = Math.floor(currentLocalHour());
-  const currentHour = tab === "today" ? localHour : -1;
   const activeTab = TABS.find((t) => t.id === tab)!;
   // Only hours that have already started are eligible for "quietest window"
   // on the Today tab — future hours have activity=0 and would always win.
@@ -106,111 +125,128 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
             </p>
           </div>
         ) : (
-        <div className="relative pl-9 sm:pl-10">
-          {/* Y-axis scale labels */}
-          <div
-            className="pointer-events-none absolute left-0 top-0 h-[260px] w-9 sm:w-10"
-            aria-hidden
-          >
-            {[0.25, 0.5, 0.75, 1].map((y) => (
-              <span
-                key={y}
-                className="absolute right-2 -translate-y-1/2 text-[10px] font-medium tabular-nums text-muted-foreground"
-                style={{ top: `${(1 - y) * 100}%` }}
-              >
-                {Math.round(y * 100)}%
-              </span>
-            ))}
-          </div>
+          <div className="relative pl-9 sm:pl-10">
+            {/* Y-axis scale labels — fixed, outside scroll container */}
+            <div
+              className="pointer-events-none absolute left-0 top-0 h-[260px] w-9 sm:w-10"
+              aria-hidden
+            >
+              {[0.25, 0.5, 0.75, 1].map((y) => (
+                <span
+                  key={y}
+                  className="absolute right-2 -translate-y-1/2 text-[10px] font-medium tabular-nums text-muted-foreground"
+                  style={{ top: `${(1 - y) * 100}%` }}
+                >
+                  {Math.round(y * 100)}%
+                </span>
+              ))}
+            </div>
 
-          {/* Y-axis grid lines */}
-          <div className="pointer-events-none absolute inset-y-0 left-9 right-0 top-0 h-[260px] sm:left-10">
-            {[0.25, 0.5, 0.75, 1].map((y) => (
+            {/* Y-axis grid lines — fixed horizontal reference, no need to scroll */}
+            <div className="pointer-events-none absolute inset-y-0 left-9 right-0 top-0 h-[260px] sm:left-10">
+              {[0.25, 0.5, 0.75, 1].map((y) => (
+                <div
+                  key={y}
+                  className="absolute inset-x-0 border-t border-dashed border-border/40"
+                  style={{ top: `${(1 - y) * 100}%` }}
+                />
+              ))}
+            </div>
+
+            {/* Scrollable bars + x-axis */}
+            <div className="relative">
+              {/* Right-edge fade signals there's more content to scroll */}
+              {showRightFade && (
+                <div
+                  className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-r from-transparent to-sand-50"
+                  aria-hidden
+                />
+              )}
               <div
-                key={y}
-                className="absolute inset-x-0 border-t border-dashed border-border/40"
-                style={{ top: `${(1 - y) * 100}%` }}
-              />
-            ))}
-          </div>
-
-          <div className="relative flex h-[260px] items-end gap-1.5 sm:gap-2">
-            {visible.map((bar, i) => {
-              const isFuture = tab === "today" && bar.hour > localHour;
-              const heightPct = Math.max(4, bar.activity * 100);
-              const occupancyPct = Math.round(bar.activity * 100);
-              // For future bars, project height from the weekly average for that hour
-              const avgActivity = data.average?.find((d) => d.hour === bar.hour)?.activity ?? 0;
-              const projectedHeight = Math.max(4, avgActivity * 100);
-              const hasProjection = isFuture && avgActivity > 0;
-              return (
-                <div
-                  key={bar.hour}
-                  className="group relative flex h-full flex-1 flex-col items-center justify-end"
-                >
-                  {/* Tooltip on hover — hidden for future hours (no confirmed data) */}
-                  {!isFuture && (
-                    <div
-                      className={cn(
-                        "pointer-events-none absolute -top-2 z-10 -translate-y-full",
-                        "rounded-lg border border-border/60 bg-white px-3 py-2 text-center shadow-lg",
-                        "opacity-0 transition-opacity duration-150 group-hover:opacity-100",
-                        "whitespace-nowrap",
-                      )}
-                    >
-                      <div className="text-[11px] font-medium text-muted-foreground">
-                        {formatHourLabel(bar.hour)}
-                      </div>
-                      <div className="text-sm font-semibold text-foreground tabular-nums">
-                        {occupancyPct}% full
-                      </div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {crowdLabelShort(bar.label)}
-                      </div>
-                    </div>
-                  )}
-
-                  {isFuture ? (
-                    // Future hour: ghost bar at projected (weekly avg) height — no color meaning
-                    hasProjection ? (
+                ref={scrollRef}
+                className="overflow-x-auto no-scrollbar"
+                onScroll={updateFade}
+              >
+                <div className="relative flex h-[260px] items-end gap-1.5 sm:gap-2">
+                  {visible.map((bar, i) => {
+                    const isFuture = tab === "today" && bar.hour > localHour;
+                    const heightPct = Math.max(4, bar.activity * 100);
+                    const occupancyPct = Math.round(bar.activity * 100);
+                    // For future bars, project height from the weekly average for that hour
+                    const avgActivity =
+                      data.average?.find((d) => d.hour === bar.hour)?.activity ?? 0;
+                    const projectedHeight = Math.max(4, avgActivity * 100);
+                    const hasProjection = isFuture && avgActivity > 0;
+                    return (
                       <div
-                        className="w-full rounded-t-sm border-t-2 border-dashed border-foreground/30 bg-foreground/[0.07]"
-                        style={{ height: `${projectedHeight}%`, opacity: 0.8 }}
-                      />
-                    ) : null
-                  ) : (
-                    <div
-                      className={cn(
-                        "w-full origin-bottom rounded-t-md bg-gradient-to-t transition-all duration-300",
-                        LEVEL_COLOR[bar.label],
-                        "group-hover:brightness-110",
-                      )}
-                      style={{
-                        height: `${heightPct}%`,
-                        animation: `bar-grow 0.9s cubic-bezier(0.16, 1, 0.3, 1) ${i * 35}ms both`,
-                      }}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                        key={bar.hour}
+                        className="group relative flex h-full min-w-[26px] flex-1 flex-col items-center justify-end"
+                      >
+                        {/* Tooltip on hover — hidden for future hours (no confirmed data) */}
+                        {!isFuture && (
+                          <div
+                            className={cn(
+                              "pointer-events-none absolute -top-2 z-10 -translate-y-full",
+                              "rounded-lg border border-border/60 bg-white px-3 py-2 text-center shadow-lg",
+                              "opacity-0 transition-opacity duration-150 group-hover:opacity-100",
+                              "whitespace-nowrap",
+                            )}
+                          >
+                            <div className="text-[11px] font-medium text-muted-foreground">
+                              {formatHourLabel(bar.hour)}
+                            </div>
+                            <div className="text-sm font-semibold text-foreground tabular-nums">
+                              {occupancyPct}% full
+                            </div>
+                            <div className="text-[11px] text-muted-foreground">
+                              {crowdLabelShort(bar.label)}
+                            </div>
+                          </div>
+                        )}
 
-          {/* X-axis labels — align with bars (skip the y-axis gutter) */}
-          <div className="mt-3 flex gap-1.5 text-[11px] text-muted-foreground sm:gap-2">
-            {visible.map((bar) => {
-              const showLabel = [10, 12, 14, 16, 18, 20].includes(bar.hour);
-              return (
-                <div
-                  key={bar.hour}
-                  className="flex flex-1 justify-center tabular-nums"
-                >
-                  {showLabel ? formatHourLabel(bar.hour) : ""}
+                        {isFuture ? (
+                          // Future hour: ghost bar at projected (weekly avg) height — no color meaning
+                          hasProjection ? (
+                            <div
+                              className="w-full rounded-t-sm border-t-2 border-dashed border-foreground/30 bg-foreground/[0.07]"
+                              style={{ height: `${projectedHeight}%`, opacity: 0.8 }}
+                            />
+                          ) : null
+                        ) : (
+                          <div
+                            className={cn(
+                              "w-full origin-bottom rounded-t-md bg-gradient-to-t transition-all duration-300",
+                              LEVEL_COLOR[bar.label],
+                              "group-hover:brightness-110",
+                            )}
+                            style={{
+                              height: `${heightPct}%`,
+                              animation: `bar-grow 0.9s cubic-bezier(0.16, 1, 0.3, 1) ${i * 35}ms both`,
+                            }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+
+                {/* X-axis labels — inside scroll container to stay aligned with bars */}
+                <div className="mt-3 flex gap-1.5 text-[11px] text-muted-foreground sm:gap-2">
+                  {visible.map((bar) => {
+                    const showLabel = [10, 12, 14, 16, 18, 20].includes(bar.hour);
+                    return (
+                      <div
+                        key={bar.hour}
+                        className="flex min-w-[26px] flex-1 justify-center tabular-nums"
+                      >
+                        {showLabel ? formatHourLabel(bar.hour) : ""}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
         )}
 
         {/* Legend + best-time suggestion */}
@@ -297,7 +333,7 @@ function BestTimesEmpty() {
             Not enough data yet
           </p>
           <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-            Today’s activity curve will fill in here as the deck sensor reports
+            Today's activity curve will fill in here as the deck sensor reports
             occupancy throughout the day.
           </p>
         </div>
