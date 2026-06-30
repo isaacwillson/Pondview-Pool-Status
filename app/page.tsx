@@ -2,6 +2,7 @@
 
 import { usePoolData } from "@/hooks/use-pool-data";
 import { usePoolStatus } from "@/hooks/use-pool-status";
+import { useScrollRestoration } from "@/hooks/use-scroll-restoration";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { HeroStatus } from "@/components/hero-status";
@@ -12,6 +13,10 @@ import { WeeklyUsageSection } from "@/components/weekly-usage";
 export default function HomePage() {
   const { data, isLoading } = usePoolData();
   const { status: adminStatus } = usePoolStatus();
+
+  // Restore scroll position after content loads, so a reload from the bottom
+  // section (Insights) doesn't get clamped to the shorter skeleton layout.
+  useScrollRestoration(!isLoading);
 
   return (
     <>
