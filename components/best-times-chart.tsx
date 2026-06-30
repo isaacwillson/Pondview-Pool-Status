@@ -40,8 +40,16 @@ const LEGEND: { level: CrowdLevel; swatch: string }[] = [
 export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
   const [tab, setTab] = useState<TabId>("today");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const nudgedRef = useRef(false);
   const [showLeftFade, setShowLeftFade] = useState(false);
   const [showRightFade, setShowRightFade] = useState(true);
+  // Custom scroll-progress indicator: thumb width = visible fraction of the
+  // track, offset = how far scrolled. Both in % of the visible width.
+  const [scrollBar, setScrollBar] = useState({
+    widthPct: 100,
+    offsetPct: 0,
+    scrollable: false,
+  });
   // Scroll-edge fades are a mobile-only affordance — on desktop the bars
   // use flex-1 and fill the width, so the track never scrolls.
   const [isMobile, setIsMobile] = useState(false);
@@ -67,8 +75,17 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
   const updateFade = useCallback(() => {
     if (!scrollRef.current) return;
     const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+    const maxScroll = scrollWidth - clientWidth;
     setShowLeftFade(scrollLeft > 4);
-    setShowRightFade(scrollLeft < scrollWidth - clientWidth - 4);
+    setShowRightFade(scrollLeft < maxScroll - 4);
+    const scrollable = maxScroll > 4;
+    const widthPct = scrollable ? (clientWidth / scrollWidth) * 100 : 100;
+    const progress = scrollable ? scrollLeft / maxScroll : 0;
+    setScrollBar({
+      widthPct,
+      offsetPct: progress * (100 - widthPct),
+      scrollable,
+    });
   }, []);
 
   useEffect(() => {
@@ -86,6 +103,25 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
     }
     requestAnimationFrame(updateFade);
   }, [tab, localHour, updateFade]);
+
+  // One-time "nudge" on mobile: gently scroll a touch and ease back so users
+  // see the track moves. Skipped when it doesn't overflow or the user prefers
+  // reduced motion.
+  useEffect(() => {
+    if (nudgedRef.current || !isMobile) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const start = el.scrollLeft;
+    if (el.scrollWidth - el.clientWidth <= 8) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    nudgedRef.current = true;
+    el.scrollTo({ left: start + 28, behavior: "smooth" });
+    const t = setTimeout(
+      () => el.scrollTo({ left: start, behavior: "smooth" }),
+      450,
+    );
+    return () => clearTimeout(t);
+  }, [isMobile, tabData]);
 
   if (!data) {
     if (isLoading) return <BestTimesSkeleton />;
@@ -278,6 +314,22 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
                   })}
                 </div>
               </div>
+
+              {/* Scroll-progress indicator — mobile only, when the track overflows */}
+              {isMobile && scrollBar.scrollable && (
+                <div
+                  className="mt-3 h-1 w-full overflow-hidden rounded-full bg-muted/70"
+                  aria-hidden
+                >
+                  <div
+                    className="h-full rounded-full bg-foreground/30"
+                    style={{
+                      width: `${scrollBar.widthPct}%`,
+                      marginLeft: `${scrollBar.offsetPct}%`,
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}
