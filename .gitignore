@@ -8,3 +8,6 @@ build
 *.log
 .vercel
 next-env.d.ts
+
+# Local Claude Code settings (per-machine permissions, etc.)
+.claude/settings.local.json
