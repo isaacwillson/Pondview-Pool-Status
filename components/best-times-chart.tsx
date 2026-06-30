@@ -104,10 +104,11 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
     requestAnimationFrame(updateFade);
   }, [tab, localHour, updateFade]);
 
-  // One-time "nudge" on mobile: gently scroll a touch and ease back so users
-  // see the track moves. Fires when the chart first scrolls into view (it sits
-  // below the fold, so an on-mount nudge would happen unseen). Skipped when the
-  // track doesn't overflow or the user prefers reduced motion.
+  // One-time "nudge" on mobile: sweep the track to the end of the day to
+  // reveal the full range, hold briefly, then ease back. Fires when the chart
+  // first scrolls into view (it sits below the fold, so an on-mount nudge would
+  // happen unseen). Skipped when the track doesn't overflow or the user prefers
+  // reduced motion.
   useEffect(() => {
     if (nudgedRef.current || !isMobile) return;
     const el = scrollRef.current;
@@ -121,11 +122,14 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
         if (el.scrollWidth - el.clientWidth <= 8) return;
         nudgedRef.current = true;
         observer.disconnect();
-        const start = el.scrollLeft;
-        el.scrollTo({ left: start + 28, behavior: "smooth" });
+        const rest = el.scrollLeft;
+        const end = el.scrollWidth - el.clientWidth;
+        // Sweep to the end, hold so the last bars register, then ease back to
+        // the resting position (current-hour view on the Today tab).
+        el.scrollTo({ left: end, behavior: "smooth" });
         timer = setTimeout(
-          () => el.scrollTo({ left: start, behavior: "smooth" }),
-          450,
+          () => el.scrollTo({ left: rest, behavior: "smooth" }),
+          750,
         );
       },
       // Fire once the bar area is comfortably on screen.
