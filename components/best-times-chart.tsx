@@ -105,22 +105,37 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
   }, [tab, localHour, updateFade]);
 
   // One-time "nudge" on mobile: gently scroll a touch and ease back so users
-  // see the track moves. Skipped when it doesn't overflow or the user prefers
-  // reduced motion.
+  // see the track moves. Fires when the chart first scrolls into view (it sits
+  // below the fold, so an on-mount nudge would happen unseen). Skipped when the
+  // track doesn't overflow or the user prefers reduced motion.
   useEffect(() => {
     if (nudgedRef.current || !isMobile) return;
     const el = scrollRef.current;
     if (!el) return;
-    const start = el.scrollLeft;
-    if (el.scrollWidth - el.clientWidth <= 8) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    nudgedRef.current = true;
-    el.scrollTo({ left: start + 28, behavior: "smooth" });
-    const t = setTimeout(
-      () => el.scrollTo({ left: start, behavior: "smooth" }),
-      450,
+
+    let timer: ReturnType<typeof setTimeout>;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting || nudgedRef.current) return;
+        if (el.scrollWidth - el.clientWidth <= 8) return;
+        nudgedRef.current = true;
+        observer.disconnect();
+        const start = el.scrollLeft;
+        el.scrollTo({ left: start + 28, behavior: "smooth" });
+        timer = setTimeout(
+          () => el.scrollTo({ left: start, behavior: "smooth" }),
+          450,
+        );
+      },
+      // Fire once the bar area is comfortably on screen.
+      { threshold: 0.5 },
     );
-    return () => clearTimeout(t);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
   }, [isMobile, tabData]);
 
   if (!data) {
