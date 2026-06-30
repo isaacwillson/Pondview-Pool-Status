@@ -14,9 +14,10 @@ export default function HomePage() {
   const { data, isLoading } = usePoolData();
   const { status: adminStatus } = usePoolStatus();
 
-  // Restore scroll position after content loads, so a reload from the bottom
-  // section (Insights) doesn't get clamped to the shorter skeleton layout.
-  useScrollRestoration(!isLoading);
+  // Restore scroll position across reloads, waiting until the page has grown
+  // to full height so a reload from the bottom section (Insights) isn't
+  // clamped to the shorter skeleton layout.
+  useScrollRestoration();
 
   return (
     <>

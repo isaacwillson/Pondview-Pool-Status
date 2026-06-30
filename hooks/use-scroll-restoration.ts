@@ -5,20 +5,21 @@ import { useEffect, useRef } from "react";
 const STORAGE_KEY = "pondview:scrollY";
 
 /**
- * Restores the window scroll position across reloads — but only *after* the
- * page's async content has finished loading.
+ * Restores the window scroll position across reloads.
  *
  * The browser's native restoration (`scrollRestoration: "auto"`) runs while the
  * loading skeletons are still showing, when the page is shorter than its final
- * height. A reload from the bottom-most section then gets clamped to the short
- * page and, once the real content expands the layout, lands on the wrong
- * section. We take over: disable the native restore, remember the scroll
- * position as the user scrolls, and re-apply it once `ready` flips true and the
- * final layout height is in place.
+ * height — so a reload from the bottom-most section gets clamped and, once the
+ * real content expands the layout, lands on the wrong section.
  *
- * @param ready  becomes true once the page's data has loaded (final height).
+ * We take over, and the two important details are:
+ *  - Capture the saved position *once on mount*, before our own scroll listener
+ *    can overwrite it (e.g. a stray scroll event at the top during loading).
+ *  - Re-apply it only once the page has actually grown tall enough to honor it,
+ *    by polling the document height rather than trusting a "loaded" flag (which
+ *    can fire while the layout is still short).
  */
-export function useScrollRestoration(ready: boolean) {
+export function useScrollRestoration() {
   const restored = useRef(false);
 
   // Take over from the browser's premature native restoration.
@@ -31,6 +32,34 @@ export function useScrollRestoration(ready: boolean) {
     };
   }, []);
 
+  // Capture the target on mount, then restore once the page is tall enough.
+  useEffect(() => {
+    if (restored.current) return;
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+    const targetY = saved == null ? 0 : Number.parseInt(saved, 10);
+    if (!targetY || Number.isNaN(targetY)) {
+      restored.current = true;
+      return;
+    }
+
+    let raf = 0;
+    // Give up waiting for content after a few seconds (e.g. data never loads).
+    const deadline = performance.now() + 3000;
+    const attempt = () => {
+      if (restored.current) return;
+      const maxScroll =
+        document.documentElement.scrollHeight - window.innerHeight;
+      if (maxScroll >= targetY - 1 || performance.now() > deadline) {
+        restored.current = true;
+        window.scrollTo(0, Math.min(targetY, Math.max(0, maxScroll)));
+        return;
+      }
+      raf = requestAnimationFrame(attempt);
+    };
+    raf = requestAnimationFrame(attempt);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   // Persist the latest scroll position (coalesced to one write per frame).
   useEffect(() => {
     let frame = 0;
@@ -38,7 +67,7 @@ export function useScrollRestoration(ready: boolean) {
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
-        sessionStorage.setItem(STORAGE_KEY, String(window.scrollY));
+        sessionStorage.setItem(STORAGE_KEY, String(Math.round(window.scrollY)));
       });
     };
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -47,16 +76,4 @@ export function useScrollRestoration(ready: boolean) {
       if (frame) cancelAnimationFrame(frame);
     };
   }, []);
-
-  // Once content is ready (final layout height), restore the saved position — once.
-  useEffect(() => {
-    if (!ready || restored.current) return;
-    restored.current = true;
-    const saved = sessionStorage.getItem(STORAGE_KEY);
-    if (saved == null) return;
-    const y = Number.parseInt(saved, 10);
-    if (Number.isNaN(y) || y === 0) return;
-    // Wait a frame so the just-rendered content has its final height.
-    requestAnimationFrame(() => window.scrollTo(0, y));
-  }, [ready]);
 }
