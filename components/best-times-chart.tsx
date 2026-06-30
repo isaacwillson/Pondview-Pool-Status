@@ -40,7 +40,9 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
   const [tab, setTab] = useState<TabId>("today");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftFade, setShowLeftFade] = useState(false);
-  const [showRightFade, setShowRightFade] = useState(true);
+  if(window.innerWidth<=750){
+    const [showRightFade, setShowRightFade] = useState(true);
+  }
 
   // Hoisted above early returns so all hooks are called unconditionally.
   const localHour = Math.floor(currentLocalHour());
