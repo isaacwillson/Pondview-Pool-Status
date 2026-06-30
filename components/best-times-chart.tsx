@@ -41,9 +41,17 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
   const [tab, setTab] = useState<TabId>("today");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftFade, setShowLeftFade] = useState(false);
-  if(window.innerWidth<=750){
-    const [showRightFade, setShowRightFade] = useState(true);
-  }
+  const [showRightFade, setShowRightFade] = useState(true);
+  // Scroll-edge fades are a mobile-only affordance — on desktop the bars
+  // use flex-1 and fill the width, so the track never scrolls.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   // Hoisted above early returns so all hooks are called unconditionally.
   const localHour = Math.floor(currentLocalHour());
@@ -174,14 +182,14 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
             {/* Scrollable bars + x-axis */}
             <div className="relative">
               {/* Left-edge fade appears once scrolled — signals history to the left */}
-              {showLeftFade && (
+              {isMobile && showLeftFade && (
                 <div
                   className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-l from-transparent to-sand-50"
                   aria-hidden
                 />
               )}
               {/* Right-edge fade signals there's more content to scroll */}
-              {showRightFade && (
+              {isMobile && showRightFade && (
                 <div
                   className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-r from-transparent to-sand-50"
                   aria-hidden
