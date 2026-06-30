@@ -7,6 +7,42 @@ import { usePoolStatus } from "@/hooks/use-pool-status";
 import { deriveEffectivePoolStatus } from "@/lib/effective-status";
 import { cn } from "@/lib/utils";
 
+const NAV_LINKS = [
+  { id: "status", label: "Pool", dimmable: false },
+  { id: "best-times", label: "Best Times", dimmable: true },
+  { id: "conditions", label: "Conditions", dimmable: true },
+  { id: "insights", label: "Insights", dimmable: true },
+];
+
+// Stable reference so the scroll-spy effect doesn't re-run every render.
+const SECTION_IDS = NAV_LINKS.map((l) => l.id);
+
+/** Scroll-spy: returns the id of the section currently nearest the top. */
+function useActiveSection(ids: string[]): string {
+  const [active, setActive] = useState(ids[0] ?? "");
+  useEffect(() => {
+    const sections = ids
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => el !== null);
+    if (sections.length === 0) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort(
+            (a, b) => a.boundingClientRect.top - b.boundingClientRect.top,
+          );
+        if (visible[0]) setActive(visible[0].target.id);
+      },
+      // Activation band sits in the upper third of the viewport.
+      { rootMargin: "-30% 0px -60% 0px", threshold: 0 },
+    );
+    sections.forEach((s) => observer.observe(s));
+    return () => observer.disconnect();
+  }, [ids]);
+  return active;
+}
+
 export function SiteHeader() {
   const { status } = usePoolStatus();
   // Re-render once a minute so schedule transitions take effect promptly
@@ -16,6 +52,7 @@ export function SiteHeader() {
     const i = setInterval(() => force((x) => x + 1), 60_000);
     return () => clearInterval(i);
   }, []);
+  const active = useActiveSection(SECTION_IDS);
   const effective = deriveEffectivePoolStatus(status);
   const closed = !effective.isOpen;
   const closedByAdmin = effective.closedBy === "admin";
@@ -36,36 +73,26 @@ export function SiteHeader() {
         </div>
 
         <nav className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">
-          <a className="transition-colors hover:text-foreground" href="#status">
-            Pool
-          </a>
-          <a
-            className={cn(
-              "transition-colors hover:text-foreground",
-              closed && "text-muted-foreground/40",
-            )}
-            href="#best-times"
-          >
-            Best Times
-          </a>
-          <a
-            className={cn(
-              "transition-colors hover:text-foreground",
-              closed && "text-muted-foreground/40",
-            )}
-            href="#conditions"
-          >
-            Conditions
-          </a>
-          <a
-            className={cn(
-              "transition-colors hover:text-foreground",
-              closed && "text-muted-foreground/40",
-            )}
-            href="#insights"
-          >
-            Insights
-          </a>
+          {NAV_LINKS.map((link) => {
+            const isActive = active === link.id;
+            return (
+              <a
+                key={link.id}
+                href={`#${link.id}`}
+                aria-current={isActive ? "true" : undefined}
+                className={cn(
+                  "relative transition-colors hover:text-foreground",
+                  isActive
+                    ? "font-medium text-foreground after:absolute after:-bottom-1.5 after:left-0 after:h-0.5 after:w-full after:rounded-full after:bg-pond-500"
+                    : link.dimmable && closed
+                      ? "text-muted-foreground/40"
+                      : "text-muted-foreground",
+                )}
+              >
+                {link.label}
+              </a>
+            );
+          })}
         </nav>
 
         <div className="flex items-center gap-2 rounded-full border border-border/70 bg-white/70 px-3 py-1.5 text-xs text-muted-foreground">

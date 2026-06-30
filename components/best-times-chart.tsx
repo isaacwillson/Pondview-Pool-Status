@@ -6,6 +6,7 @@ import { Badge } from "./ui/badge";
 import { cn } from "@/lib/utils";
 import { crowdLabelShort } from "@/lib/mock-data";
 import { currentLocalHour, formatHourLabel } from "@/lib/time";
+import { POOL_CLOSE_HOUR, POOL_OPEN_HOUR, POOL_TIMEZONE } from "@/lib/config";
 import type { CrowdLevel, HourlyActivity, HourlyActivitySet } from "@/lib/types";
 
 interface BestTimesChartProps {
@@ -47,7 +48,13 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
   // Hoisted above early returns so all hooks are called unconditionally.
   const localHour = Math.floor(currentLocalHour());
   const tabData = data?.[tab] ?? null;
-  const visible = tabData?.filter((d) => d.hour >= 10 && d.hour <= 20) ?? [];
+  // Each bar is an hour block [h, h+1). The last valid block starts at the
+  // hour before close (e.g. 7 PM for an 8 PM close); the close hour itself
+  // (the "8 PM–9 PM" block) is past closing, so exclude it.
+  const visible =
+    tabData?.filter(
+      (d) => d.hour >= POOL_OPEN_HOUR && d.hour < POOL_CLOSE_HOUR,
+    ) ?? [];
 
   const updateFade = useCallback(() => {
     if (!scrollRef.current) return;
@@ -62,7 +69,10 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
     const BAR_W = 38;
     if (tab === "today") {
       // Show current bar with ~3 bars of history to the left so ghost bars are visible on the right.
-      scrollRef.current.scrollLeft = Math.max(0, (localHour - 10 - 3) * BAR_W);
+      scrollRef.current.scrollLeft = Math.max(
+        0,
+        (localHour - POOL_OPEN_HOUR - 3) * BAR_W,
+      );
     } else {
       scrollRef.current.scrollLeft = 0;
     }
@@ -106,10 +116,10 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
               aria-selected={tab === t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                "rounded-full px-3.5 py-1.5 text-xs font-medium transition-all",
+                "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all",
                 tab === t.id
-                  ? "bg-foreground text-background shadow-sm"
-                  : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground",
+                  ? "border-transparent bg-foreground text-background shadow-sm"
+                  : "border-border/60 bg-muted/70 text-foreground/70 hover:bg-muted hover:text-foreground",
               )}
             >
               {t.label}
@@ -119,6 +129,10 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
       </CardHeader>
 
       <CardContent className="px-7 pb-9 sm:px-9">
+        {/* Orients the reader to which day the bars represent */}
+        <p className="-mt-1 mb-6 text-xs text-muted-foreground">
+          {tabContext(tab)}
+        </p>
         {tabData === null ? (
           <div className="flex h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-secondary/40 text-center">
             <p className="font-display text-2xl text-foreground/80">
@@ -151,7 +165,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
               {[0.25, 0.5, 0.75, 1].map((y) => (
                 <div
                   key={y}
-                  className="absolute inset-x-0 border-t border-dashed border-border/40"
+                  className="absolute inset-x-0 border-t border-dashed border-border/70"
                   style={{ top: `${(1 - y) * 100}%` }}
                 />
               ))}
@@ -244,7 +258,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
                 {/* X-axis labels — inside scroll container to stay aligned with bars */}
                 <div className="mt-3 flex gap-3 text-[11px] text-muted-foreground">
                   {visible.map((bar) => {
-                    const showLabel = [10, 12, 14, 16, 18, 20].includes(bar.hour);
+                    const showLabel = [10, 12, 14, 16, 18].includes(bar.hour);
                     return (
                       <div
                         key={bar.hour}
@@ -302,6 +316,28 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
 /** Find the visible hour with the lowest activity (ties → earliest hour). */
 function findQuietest(visible: HourlyActivity[]): HourlyActivity {
   return visible.reduce((a, b) => (b.activity < a.activity ? b : a));
+}
+
+/** "Jun 28" for the given day offset, always in the pool's local timezone. */
+function formatPoolDate(dayOffset: number): string {
+  const d = new Date(Date.now() + dayOffset * 86_400_000);
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: POOL_TIMEZONE,
+    month: "short",
+    day: "numeric",
+  }).format(d);
+}
+
+/** One-line caption telling the reader which day's data is on screen. */
+function tabContext(tab: TabId): string {
+  switch (tab) {
+    case "today":
+      return `Showing today · ${formatPoolDate(0)}`;
+    case "yesterday":
+      return `Showing ${formatPoolDate(-1)}`;
+    case "average":
+      return "Average of the last 7 days";
+  }
 }
 
 function emptyTabTitle(tab: TabId): string {
