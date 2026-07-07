@@ -5,10 +5,6 @@
  * The response is cached by Next's Data Cache for 10 minutes, so a
  * busy site only hits Open-Meteo ~6 times per hour even with hundreds
  * of residents on the page.
- *
- * If the upstream call fails (network blip, rate limit, schema drift),
- * we fall back to sensible Austin-summer defaults so the dashboard
- * keeps looking complete instead of showing dashes everywhere.
  */
 import "server-only";
 import { POOL_LAT, POOL_LON } from "./config";
