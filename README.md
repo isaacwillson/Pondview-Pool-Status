@@ -13,7 +13,7 @@ Built with Next.js 15 (App Router), React 19, TypeScript, and Tailwind CSS.
 
 The site is schedule-aware (shows Closed outside pool hours) and every section degrades gracefully to "not enough data yet" states when readings are missing.
 
-## How data flows
+## Data pipeline
 
 ```
 Camera / CV process ──POST /api/sensor-reading──▶ Postgres (occupancy_readings)
@@ -27,7 +27,7 @@ Upstash Redis (admin override) ─┼──▶ GET /api/pool-data ─┴──�
 - **Admin override** (force-close with a reason) lives in Upstash Redis and takes precedence over the schedule.
 - The schema is bootstrapped automatically on first use — no migration step.
 
-## Getting started
+## Usage
 
 ```bash
 npm install
