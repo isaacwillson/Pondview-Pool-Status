@@ -63,10 +63,14 @@ node scripts/seed-readings.mjs --reset   # truncate first
 | `/api/pool-status` | GET | Admin open/closed override state. |
 | `/api/sensor-reading` | POST | Ingest an occupancy reading. `Authorization: Bearer <SENSOR_API_KEY>`, body `{ "occupancy": 17, "recordedAt"?: ISO }`. |
 | `/api/admin-auth` | POST | Admin login (sets an auth cookie). |
+| `/api/admin-readings` | GET / POST / PATCH / DELETE | Admin CRUD over raw occupancy readings (powers the data editor). Requires an admin session. |
 
 ## Admin panel
 
-`/admin/login` → `/admin/pool` lets property management force-close the pool with a resident-facing reason (e.g. maintenance, weather). The override takes effect on residents' screens within a few seconds and always wins over the schedule.
+`/admin/login` gates the admin area (auth via an HMAC-signed cookie derived from `ADMIN_PASSWORD`).
+
+- **`/admin/pool`** — force-close the pool with a resident-facing reason (e.g. maintenance, weather). The override takes effect on residents' screens within a few seconds and always wins over the schedule.
+- **`/admin/data`** — a spreadsheet-style editor for the raw `occupancy_readings` table (the camera feed / seeded data). View, edit, delete, and insert readings; the dashboard's charts and stats recompute from this table. Requires `DATABASE_URL`.
 
 ## Configuration
 

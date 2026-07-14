@@ -28,6 +28,30 @@ export interface ReadingInput {
   recordedAt?: Date;
 }
 
+/** A stored occupancy reading, including its primary key. */
+export interface Reading {
+  id: number;
+  occupancy: number;
+  capacity: number;
+  recordedAt: Date;
+}
+
+type ReadingRow = {
+  id: number;
+  occupancy: number;
+  capacity: number;
+  recorded_at: Date;
+};
+
+function toReading(r: ReadingRow): Reading {
+  return {
+    id: r.id,
+    occupancy: r.occupancy,
+    capacity: r.capacity,
+    recordedAt: r.recorded_at,
+  };
+}
+
 export async function insertReading(input: ReadingInput): Promise<void> {
   const sql = getSql();
   if (!sql) return;
@@ -40,6 +64,80 @@ export async function insertReading(input: ReadingInput): Promise<void> {
       ${input.capacity}
     )
   `;
+}
+
+// ---------------------------------------------------------------------------
+// CRUD for the admin data editor
+// ---------------------------------------------------------------------------
+
+/** Newest-first page of readings plus the total row count. */
+export async function listReadings(opts?: {
+  limit?: number;
+  offset?: number;
+}): Promise<{ rows: Reading[]; total: number }> {
+  const sql = getSql();
+  if (!sql) return { rows: [], total: 0 };
+  await ensureSchema();
+
+  const limit = Math.min(Math.max(opts?.limit ?? 200, 1), 1000);
+  const offset = Math.max(opts?.offset ?? 0, 0);
+
+  const [rows, counts] = await Promise.all([
+    sql<ReadingRow[]>`
+      SELECT id, occupancy, capacity, recorded_at
+      FROM occupancy_readings
+      ORDER BY recorded_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `,
+    sql<{ count: number }[]>`SELECT COUNT(*)::int AS count FROM occupancy_readings`,
+  ]);
+
+  return { rows: rows.map(toReading), total: counts[0]?.count ?? 0 };
+}
+
+/** Insert a reading and return the created row (or null when no DB). */
+export async function createReading(
+  input: ReadingInput,
+): Promise<Reading | null> {
+  const sql = getSql();
+  if (!sql) return null;
+  await ensureSchema();
+  const rows = await sql<ReadingRow[]>`
+    INSERT INTO occupancy_readings (recorded_at, occupancy, capacity)
+    VALUES (${input.recordedAt ?? new Date()}, ${input.occupancy}, ${input.capacity})
+    RETURNING id, occupancy, capacity, recorded_at
+  `;
+  return rows.length ? toReading(rows[0]) : null;
+}
+
+/** Update a reading by id. Returns the updated row, or null if not found / no DB. */
+export async function updateReading(
+  id: number,
+  input: ReadingInput,
+): Promise<Reading | null> {
+  const sql = getSql();
+  if (!sql) return null;
+  await ensureSchema();
+  const rows = await sql<ReadingRow[]>`
+    UPDATE occupancy_readings
+    SET occupancy = ${input.occupancy},
+        capacity = ${input.capacity},
+        recorded_at = ${input.recordedAt ?? new Date()}
+    WHERE id = ${id}
+    RETURNING id, occupancy, capacity, recorded_at
+  `;
+  return rows.length ? toReading(rows[0]) : null;
+}
+
+/** Delete a reading by id. Returns true if a row was removed. */
+export async function deleteReading(id: number): Promise<boolean> {
+  const sql = getSql();
+  if (!sql) return false;
+  await ensureSchema();
+  const rows = await sql<{ id: number }[]>`
+    DELETE FROM occupancy_readings WHERE id = ${id} RETURNING id
+  `;
+  return rows.length > 0;
 }
 
 // ---------------------------------------------------------------------------
