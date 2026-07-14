@@ -4,7 +4,7 @@
  * to change without a deploy belongs in Redis or Postgres instead.
  */
 
-export const POOL_CAPACITY = 90;
+export const POOL_CAPACITY = 80;
 
 /**
  * IANA timezone for the pool's physical location. Used to bucket
