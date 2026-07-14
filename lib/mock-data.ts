@@ -98,7 +98,7 @@ export function buildConditions(now: Date = new Date()): PoolConditions {
 
   return {
     airTempF: 84,
-    waterTempF: 81,
+    waterTempF: 85,
     uvIndex: 7,
     openFromHour: POOL_OPEN_HOUR,
     openUntilHour: POOL_CLOSE_HOUR,
