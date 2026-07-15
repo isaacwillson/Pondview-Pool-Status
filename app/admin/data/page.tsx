@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { isDbConfigured } from "@/lib/db";
+import { readDemoMode } from "@/lib/demo-mode";
 import { listReadings } from "@/lib/occupancy-history";
 import { POOL_CAPACITY, POOL_TIMEZONE } from "@/lib/config";
 import { AdminDataTable } from "./data-table";
@@ -12,7 +13,10 @@ export default async function AdminDataPage() {
     redirect("/admin/login?next=/admin/data");
   }
 
-  const { rows, total } = await listReadings({ limit: 200 });
+  const [{ rows, total }, demoMode] = await Promise.all([
+    listReadings({ limit: 500 }),
+    readDemoMode(),
+  ]);
   const initialRows = rows.map((r) => ({
     id: r.id,
     occupancy: r.occupancy,
@@ -59,6 +63,7 @@ export default async function AdminDataPage() {
           dbConnected={isDbConfigured()}
           defaultCapacity={POOL_CAPACITY}
           timezone={POOL_TIMEZONE}
+          initialDemoMode={demoMode}
         />
       </div>
     </main>
