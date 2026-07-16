@@ -5,7 +5,7 @@ A live, resident-facing dashboard for the community pool at Pondview Estates (Wh
 Built with Next.js 15 (App Router), React 19, TypeScript, and Tailwind CSS.
 
 ## What residents see
-<img src="docs/Desktop hero-card.png" alt="Pondview Pool Status dashboard — live crowd level and estimated occupancy" width="900" />
+<img src="docs/desktop hero-card.png" alt="Pondview Pool Status dashboard — live crowd level and estimated occupancy" width="900" />
 
 </div>
 
@@ -14,7 +14,7 @@ Built with Next.js 15 (App Router), React 19, TypeScript, and Tailwind CSS.
 ## Tour
 
 <div align="center">
-  <img src="docs/media/tour-desktop.gif" alt="Scrolling tour of the full dashboard" width="850" />
+  <img src="docs/desktop tour.gif" alt="Scrolling tour of the full dashboard" width="850" />
 </div>
 
 ### 📊 Best Times to Visit
@@ -22,7 +22,7 @@ Built with Next.js 15 (App Router), React 19, TypeScript, and Tailwind CSS.
 An hourly activity chart with **Today / Yesterday / Weekly avg.** tabs. Confirmed hours render as colored bars; future hours show as dashed **ghost bars projected from the weekly average**, and a pill calls out the quietest window so far today.
 
 <div align="center">
-  <img src="docs/media/best-times-desktop.png" alt="Best Times to Visit chart — confirmed bars plus projected ghost bars" width="850" />
+  <img src="docs/Desktop Best Times Chart.gif" alt="Best Times to Visit chart — confirmed bars plus projected ghost bars" width="850" />
 </div>
 
 On mobile the chart becomes a horizontally scrollable track — with edge fades, a scroll-progress indicator, and a one-time sweep so residents notice there's more day to see:
