@@ -5,6 +5,7 @@ import type {
   HourlyActivity,
   PoolConditions,
   PoolDataSnapshot,
+  Trend,
 } from "./types";
 
 const CAPACITY = POOL_CAPACITY;
@@ -67,21 +68,57 @@ export function crowdLabelShort(level: CrowdLevel): string {
 }
 
 /**
- * Activity curve roughly matching how a luxury apartment pool fills:
- * early-morning lap swimmers, mid-day families, an after-work peak, then quiet.
+ * Demo activity curves — one per chart tab, each with its own shape so the
+ * Today / Yesterday / Weekly avg. tabs are visibly different in demo mode.
+ *
+ * AVERAGE: the smooth "typical week" baseline (also feeds the ghost-bar
+ * projections the chart draws for future hours on the Today tab).
  */
-const ACTIVITY_CURVE: number[] = [
+const AVERAGE_CURVE: number[] = [
   0.02, 0.02, 0.02, 0.02, 0.04, 0.08, 0.14, 0.22, // 12am-7am
   0.28, 0.32, 0.40, 0.50, 0.58, 0.62, 0.66, 0.72, // 8am-3pm
   0.80, 0.92, 0.95, 0.74, 0.42, 0.22, 0.10, 0.05, // 4pm-11pm
 ];
 
-export function buildHourlyActivity(): HourlyActivity[] {
-  return ACTIVITY_CURVE.map((activity, hour) => ({
+/** YESTERDAY: a slow morning that builds to a big early-evening peak. */
+const YESTERDAY_CURVE: number[] = [
+  0.02, 0.02, 0.02, 0.02, 0.03, 0.06, 0.10, 0.16, // 12am-7am
+  0.20, 0.21, 0.22, 0.30, 0.35, 0.31, 0.42, 0.55, // 8am-3pm
+  0.68, 0.85, 0.97, 0.88, 0.50, 0.26, 0.12, 0.06, // 4pm-11pm
+];
+
+/**
+ * TODAY: per-hour multipliers applied to the average — a busier-than-usual
+ * morning and a deeper midday lull, so today tells its own story.
+ */
+const TODAY_VS_AVERAGE: number[] = [
+  1.0, 1.0, 1.0, 1.0, 1.1, 1.2, 1.25, 1.2, // 12am-7am
+  1.3, 1.35, 1.3, 1.15, 0.8, 0.75, 0.9, 1.05, // 8am-3pm
+  1.1, 1.0, 0.95, 1.05, 1.1, 1.0, 1.0, 1.0, // 4pm-11pm
+];
+
+function toHourly(curve: number[]): HourlyActivity[] {
+  return curve.map((activity, hour) => ({
     hour,
     activity,
     label: activityToCrowdLevel(activity),
   }));
+}
+
+/**
+ * Today's demo curve: readings up to the current pool-local hour, empty
+ * after — like a real partial day, so the chart renders confirmed bars for
+ * the morning and ghost projections for the rest.
+ */
+function buildDemoToday(now: Date): HourlyActivity[] {
+  const currentHour = Math.floor(currentLocalHour(now));
+  return AVERAGE_CURVE.map((avg, hour) => {
+    const activity =
+      hour > currentHour
+        ? 0
+        : Math.min(1, Math.round(avg * TODAY_VS_AVERAGE[hour] * 100) / 100);
+    return { hour, activity, label: activityToCrowdLevel(activity) };
+  });
 }
 
 /**
@@ -112,22 +149,35 @@ export function buildConditions(now: Date = new Date()): PoolConditions {
  * composes the snapshot from real readings in `pool-data-server.ts`.
  */
 export function buildSnapshot(now: Date = new Date()): PoolDataSnapshot {
-  const occupancy = 12;
+  const today = buildDemoToday(now);
+  // Derive the hero status from today's curve at the current hour so the
+  // demo is internally consistent — the headline, occupancy %, and chart
+  // all tell the same story.
+  const currentHour = Math.min(23, Math.max(0, Math.floor(currentLocalHour(now))));
+  const nowActivity = today[currentHour]?.activity ?? 0;
+  const prevActivity = today[Math.max(0, currentHour - 1)]?.activity ?? 0;
+  const trend: Trend =
+    nowActivity - prevActivity > 0.03
+      ? "rising"
+      : prevActivity - nowActivity > 0.03
+        ? "falling"
+        : "steady";
+  const occupancy = Math.round(nowActivity * CAPACITY);
   const lastUpdated = new Date(now.getTime() - 2 * 60_000);
 
   return {
     status: {
-      crowdLevel: "plenty-of-space",
+      crowdLevel: activityToCrowdLevel(nowActivity),
       occupancy,
       capacity: CAPACITY,
       lastUpdated,
-      trend: "rising",
+      trend,
     },
     conditions: buildConditions(now),
     hourlyActivity: {
-      today: buildHourlyActivity(),
-      yesterday: buildHourlyActivity(),
-      average: buildHourlyActivity(),
+      today,
+      yesterday: toHourly(YESTERDAY_CURVE),
+      average: toHourly(AVERAGE_CURVE),
     },
     weeklyUsage: {
       peakDay: { day: "Saturday", averageOccupancy: 47 },
