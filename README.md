@@ -5,11 +5,43 @@ A live, resident-facing dashboard for the community pool at Pondview Estates (Wh
 Built with Next.js 15 (App Router), React 19, TypeScript, and Tailwind CSS.
 
 ## What residents see
+<img src="docs/media/hero-desktop.png" alt="Pondview Pool Status dashboard — live crowd level and estimated occupancy" width="900" />
 
-- **Live status hero** — current crowd level, estimated occupancy %, capacity bar, and a data-driven "typically quieter after 4 PM"-style hint when it's busy.
-- **Best Times to Visit** — an hourly activity chart with Today / Yesterday / Weekly avg. tabs. Future hours render as ghost bars projected from the weekly average; on mobile the chart scrolls horizontally with a progress indicator and a one-time sweep to hint at scrollability.
-- **Live Pool Conditions** — crowd level, trend (rising / falling / steady), air & water temperature, UV index, and pool hours.
-- **This Week's Usage** — quietest time, peak day, and most popular time, aggregated from the last 7 days.
+</div>
+
+---
+
+## Tour
+
+<div align="center">
+  <img src="docs/media/tour-desktop.gif" alt="Scrolling tour of the full dashboard" width="850" />
+</div>
+
+### 📊 Best Times to Visit
+
+An hourly activity chart with **Today / Yesterday / Weekly avg.** tabs. Confirmed hours render as colored bars; future hours show as dashed **ghost bars projected from the weekly average**, and a pill calls out the quietest window so far today.
+
+<div align="center">
+  <img src="docs/media/best-times-desktop.png" alt="Best Times to Visit chart — confirmed bars plus projected ghost bars" width="850" />
+</div>
+
+On mobile the chart becomes a horizontally scrollable track — with edge fades, a scroll-progress indicator, and a one-time sweep so residents notice there's more day to see:
+
+<div align="center">
+  <img src="docs/media/chart-mobile.gif" alt="Mobile chart — sweep animation and switching between Today, Yesterday, and Weekly average tabs" width="340" />
+</div>
+
+### 📱 Designed mobile-first
+
+Residents check on their phones on the way out the door — every section is built for a narrow screen first.
+
+<div align="center">
+  <img src="docs/media/hero-mobile.png" alt="Mobile dashboard — live status hero" width="260" />
+  &nbsp;&nbsp;
+  <img src="docs/media/best-times-mobile.png" alt="Mobile Best Times chart" width="260" />
+  &nbsp;&nbsp;
+  <img src="docs/media/conditions-mobile.png" alt="Mobile conditions grid" width="260" />
+</div>
 
 The site is schedule-aware (shows Closed outside pool hours) and every section degrades gracefully to "not enough data yet" states when readings are missing.
 
