@@ -1,15 +1,72 @@
+<div align="center">
+
 # Pondview Pool Status
 
-A live, resident-facing dashboard for the community pool at Pondview Estates (Wharton, NJ). Residents can check how busy the pool is right now, find the best times to visit, and see current conditions — before walking over with a towel.
+**A live, resident-facing dashboard for the community pool at Pondview Estates (Wharton, NJ).**
 
-Built with Next.js 15 (App Router), React 19, TypeScript, and Tailwind CSS.
+Check how busy the pool is right now, find the best times to visit, and see current conditions — before walking over with a towel.
+
+![Next.js](https://img.shields.io/badge/Next.js_15-000000?logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React_19-087EA4?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)
+![Vercel](https://img.shields.io/badge/Deployed_on_Vercel-000000?logo=vercel&logoColor=white)
+
+<img src="docs/media/hero-desktop.png" alt="Pondview Pool Status dashboard — live crowd level and estimated occupancy" width="900" />
+
+</div>
+
+---
+
+## Tour
+
+<div align="center">
+  <img src="docs/media/tour-desktop.gif" alt="Scrolling tour of the full dashboard" width="850" />
+</div>
 
 ## What residents see
 
-- **Live status hero** — current crowd level, estimated occupancy %, capacity bar, and a data-driven "typically quieter after 4 PM"-style hint when it's busy.
-- **Best Times to Visit** — an hourly activity chart with Today / Yesterday / Weekly avg. tabs. Future hours render as ghost bars projected from the weekly average; on mobile the chart scrolls horizontally with a progress indicator and a one-time sweep to hint at scrollability.
-- **Live Pool Conditions** — crowd level, trend (rising / falling / steady), air & water temperature, UV index, and pool hours.
-- **This Week's Usage** — quietest time, peak day, and most popular time, aggregated from the last 7 days.
+### 📊 Best Times to Visit
+
+An hourly activity chart with **Today / Yesterday / Weekly avg.** tabs. Confirmed hours render as colored bars; future hours show as dashed **ghost bars projected from the weekly average**, and a pill calls out the quietest window so far today.
+
+<div align="center">
+  <img src="docs/media/best-times-desktop.png" alt="Best Times to Visit chart — confirmed bars plus projected ghost bars" width="850" />
+</div>
+
+On mobile the chart becomes a horizontally scrollable track — with edge fades, a scroll-progress indicator, and a one-time sweep so residents notice there's more day to see:
+
+<div align="center">
+  <img src="docs/media/chart-mobile.gif" alt="Mobile chart — sweep animation and switching between Today, Yesterday, and Weekly average tabs" width="340" />
+</div>
+
+### 🌤 Live Pool Conditions
+
+Crowd level, trend (rising / falling / steady), air & water temperature, UV index, and pool hours — laid out as a responsive card grid (2×2 on phones).
+
+<div align="center">
+  <img src="docs/media/conditions-desktop.png" alt="Live Pool Conditions cards — crowd level, trend, temperature, UV index, pool hours" width="850" />
+</div>
+
+### 📈 This Week's Usage
+
+Quietest time, peak day, and most popular time, aggregated from the last 7 days of readings.
+
+<div align="center">
+  <img src="docs/media/insights-desktop.png" alt="Weekly usage insights — quietest time, peak day, most popular time" width="850" />
+</div>
+
+### 📱 Designed mobile-first
+
+Residents check on their phones on the way out the door — every section is built for a narrow screen first.
+
+<div align="center">
+  <img src="docs/media/hero-mobile.png" alt="Mobile dashboard — live status hero" width="260" />
+  &nbsp;&nbsp;
+  <img src="docs/media/best-times-mobile.png" alt="Mobile Best Times chart" width="260" />
+  &nbsp;&nbsp;
+  <img src="docs/media/conditions-mobile.png" alt="Mobile conditions grid" width="260" />
+</div>
 
 The site is schedule-aware (shows Closed outside pool hours) and every section degrades gracefully to "not enough data yet" states when readings are missing.
 
@@ -55,6 +112,8 @@ node scripts/seed-readings.mjs --days 14 # more history
 node scripts/seed-readings.mjs --reset   # truncate first
 ```
 
+No database? Flip on **demo mode** from `/admin/data` instead — the resident view serves generated example data (nothing is written), and switching it off returns to live data.
+
 ## API routes
 
 | Route | Method | Purpose |
@@ -84,14 +143,19 @@ All time math is done in the pool's local timezone (`America/New_York`) via [lib
 ```
 app/
   page.tsx              # resident dashboard
-  admin/                # login + pool controls
-  api/                  # pool-data, pool-status, sensor-reading, admin-auth
+  admin/                # login + pool controls + data editor
+  api/                  # pool-data, pool-status, sensor-reading, admin-auth, …
 components/             # hero-status, best-times-chart, live-conditions, weekly-usage, …
 hooks/                  # client polling + scroll restoration
 lib/                    # config, db, aggregates, weather, auth, effective status
 scripts/seed-readings.mjs
+docs/                   # README media + the script that generates it
 ```
 
 ## Deployment
 
 Deploys as a standard Next.js app (built for Vercel — includes Speed Insights). Set the four environment variables above; the `occupancy_readings` table and index are created automatically on first request.
+
+---
+
+<sub>README screenshots and GIFs are generated with [docs/generate-readme-media.mjs](docs/generate-readme-media.mjs) (Playwright, demo mode on, nothing written to the database).</sub>
