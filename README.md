@@ -5,7 +5,7 @@ A live, resident-facing dashboard for the community pool at Pondview Estates (Wh
 Built with Next.js 15 (App Router), React 19, TypeScript, and Tailwind CSS.
 
 ## What residents see
-<img src="docs/media/hero-desktop.png" alt="Pondview Pool Status dashboard — live crowd level and estimated occupancy" width="900" />
+<img src="docs/Desktop hero-card.gif" alt="Pondview Pool Status dashboard — live crowd level and estimated occupancy" width="900" />
 
 </div>
 
