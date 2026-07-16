@@ -17,6 +17,10 @@ Built with Next.js 15 (App Router), React 19, TypeScript, and Tailwind CSS.
   <img src="docs/desktop tour.gif" alt="Scrolling tour of the full dashboard" width="850" />
 </div>
 
+<p align="center">
+  <img src="docs/desktop tour.gif" width="850" alt="Dashboard demo">
+</p>
+
 ### 📊 Best Times to Visit
 
 An hourly activity chart with **Today / Yesterday / Weekly avg.** tabs. Confirmed hours render as colored bars; future hours show as dashed **ghost bars projected from the weekly average**, and a pill calls out the quietest window so far today.
