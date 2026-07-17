@@ -7,10 +7,6 @@ Built with Next.js 15 (App Router), React 19, TypeScript, and Tailwind CSS.
 ## What residents see
 <img src="docs/desktop hero-card.png" alt="Pondview Pool Status dashboard — live crowd level and estimated occupancy" width="900" />
 
-</div>
-
----
-
 ## Tour
 
 <div align="center">
