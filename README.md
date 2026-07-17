@@ -32,11 +32,11 @@ On mobile the chart becomes a horizontally scrollable track — with edge fades,
 Residents check on their phones on the way out the door — every section is built for a narrow screen first.
 
 <div align="center">
-  <img src="docs/media/hero-mobile.png" alt="Mobile dashboard — live status hero" width="260" />
+  <img src="docs/IMG_3892.PNG" alt="Mobile dashboard — live status hero" width="260" />
   &nbsp;&nbsp;
-  <img src="docs/media/best-times-mobile.png" alt="Mobile Best Times chart" width="260" />
+  <img src="docs/ScreenRecording_07-17-2026 16-06-41_1.gif" alt="Mobile Best Times chart" width="260" />
   &nbsp;&nbsp;
-  <img src="docs/media/conditions-mobile.png" alt="Mobile conditions grid" width="260" />
+  <img src="docs/IMG_3895.jpg" alt="Mobile conditions grid" width="260" />
 </div>
 
 The site is schedule-aware (shows Closed outside pool hours) and every section degrades gracefully to "not enough data yet" states when readings are missing.
