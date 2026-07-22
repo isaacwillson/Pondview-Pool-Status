@@ -44,13 +44,16 @@ The site is schedule-aware (shows Closed outside pool hours) and every section d
 ## Data pipeline
 
 ```
-Camera / CV process ──POST /api/sensor-reading──▶ Postgres (occupancy_readings)
+Camera / CV process ┄┄POST /api/sensor-reading┄┄▶ ┐  (planned — not yet connected)
+Admin data editor ──────────────────────────────▶ Postgres (occupancy_readings)
                                                         │
 Open-Meteo (weather, no key) ──┐                        │ aggregates
 Upstash Redis (admin override) ─┼──▶ GET /api/pool-data ─┴──▶ dashboard (polls)
 ```
 
-- **Occupancy readings** are POSTed by an on-site camera process and stored in Postgres. All aggregates (hourly curves, weekly stats, trend) are computed from this table.
+> **Current status:** the on-site camera isn't connected yet. Occupancy readings are being entered by hand in the [data editor](#admin-panel) (`/admin/data`) while camera access is pending. Everything downstream already runs on that data — swapping in the camera is just a matter of it POSTing to `/api/sensor-reading`; no other changes are needed.
+
+- **Occupancy readings** live in Postgres and drive every aggregate (hourly curves, weekly stats, trend). They're currently entered manually via the data editor; the `/api/sensor-reading` endpoint is built and ready for the camera to POST to once it's online.
 - **Weather** (air temp, UV) comes from Open-Meteo — no API key, cached ~10 min.
 - **Admin override** (force-close with a reason) lives in Upstash Redis and takes precedence over the schedule.
 - The schema is bootstrapped automatically on first use — no migration step.
@@ -89,7 +92,7 @@ node scripts/seed-readings.mjs --reset   # truncate first
 | --- | --- | --- |
 | `/api/pool-data` | GET | Full dashboard snapshot: status, conditions, hourly activity, weekly usage. Polled by the client. |
 | `/api/pool-status` | GET | Admin open/closed override state. |
-| `/api/sensor-reading` | POST | Ingest an occupancy reading. `Authorization: Bearer <SENSOR_API_KEY>`, body `{ "occupancy": 17, "recordedAt"?: ISO }`. |
+| `/api/sensor-reading` | POST | Ingest an occupancy reading. `Authorization: Bearer <SENSOR_API_KEY>`, body `{ "occupancy": 17, "recordedAt"?: ISO }`. Built for the camera — ready but not yet in use. |
 | `/api/admin-auth` | POST | Admin login (sets an auth cookie). |
 | `/api/admin-readings` | GET / POST / PATCH / DELETE | Admin CRUD over raw occupancy readings (powers the data editor). Requires an admin session. |
 | `/api/demo-mode` | GET / POST | Toggle demo mode: the resident view serves generated example data instead of database readings. Requires an admin session. |
@@ -99,7 +102,7 @@ node scripts/seed-readings.mjs --reset   # truncate first
 `/admin/login` gates the admin area (auth via an HMAC-signed cookie derived from `ADMIN_PASSWORD`).
 
 - **`/admin/pool`** — force-close the pool with a resident-facing reason (e.g. maintenance, weather). The override takes effect on residents' screens within a few seconds and always wins over the schedule.
-- **`/admin/data`** — a spreadsheet-style editor for the raw `occupancy_readings` table (the camera feed / seeded data). View, search, edit, delete, and insert readings in a scrolling window; the dashboard's charts and stats recompute from this table. Requires `DATABASE_URL`. Also hosts the **demo mode** toggle, which serves generated example data to the resident view (nothing written to the database) — useful for demos or when no database is connected.
+- **`/admin/data`** — a spreadsheet-style editor for the raw `occupancy_readings` table. **This is currently the primary way readings get in**, since the camera isn't connected yet. View, search, edit, delete, and insert readings in a scrolling window; the dashboard's charts and stats recompute from this table. Requires `DATABASE_URL`. Also hosts the **demo mode** toggle, which serves generated example data to the resident view (nothing written to the database) — useful for demos or when no database is connected.
 
 ## Configuration
 
