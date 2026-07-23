@@ -18,6 +18,7 @@ import {
 import { ensureSchema, getSql } from "./db";
 import type { HourlyActivity, Trend, WeeklyUsage } from "./types";
 import { activityToCrowdLevel } from "./mock-data";
+import { weekdayLongName } from "./time";
 
 // ---------------------------------------------------------------------------
 // Writes
@@ -322,19 +323,18 @@ export async function getWeeklyUsage(): Promise<WeeklyUsage | null> {
     return null;
   }
 
-  const [peakRows, avgRows, slotRows] = await Promise.all([
-    // Peak day — day-of-week with the highest average occupancy.
-    sql<{ day_name: string; avg_occ: number }[]>`
+  const [dowRows, avgRows, slotRows] = await Promise.all([
+    // Average occupancy per weekday (0 = Sun … 6 = Sat). Drives both the peak
+    // day and the sparkline, so they can never disagree.
+    sql<{ dow: number; avg_occ: number }[]>`
       SELECT
-        TRIM(TO_CHAR(recorded_at AT TIME ZONE ${POOL_TIMEZONE}, 'FMDay')) AS day_name,
+        EXTRACT(DOW FROM recorded_at AT TIME ZONE ${POOL_TIMEZONE})::int AS dow,
         AVG(occupancy)::float AS avg_occ
       FROM occupancy_readings
       WHERE recorded_at >= NOW() - INTERVAL '7 days'
         AND EXTRACT(hour FROM recorded_at AT TIME ZONE ${POOL_TIMEZONE})
             BETWEEN ${POOL_OPEN_HOUR} AND ${POOL_CLOSE_HOUR - 1}
-      GROUP BY day_name
-      ORDER BY avg_occ DESC NULLS LAST
-      LIMIT 1
+      GROUP BY dow
     `,
     // Overall 7-day average across open hours.
     sql<{ avg_occ: number | null }[]>`
@@ -359,15 +359,21 @@ export async function getWeeklyUsage(): Promise<WeeklyUsage | null> {
     `,
   ]);
 
-  if (slotRows.length === 0 || peakRows.length === 0) return null;
+  if (slotRows.length === 0 || dowRows.length === 0) return null;
 
   const quietest = slotRows[0];
   const popular = slotRows[slotRows.length - 1];
 
+  // Fold the per-weekday rows into a 7-slot array (index = weekday), then take
+  // the busiest day as the peak.
+  const dailyAverages = Array<number>(7).fill(0);
+  for (const r of dowRows) dailyAverages[r.dow] = Math.round(r.avg_occ);
+  const peakDow = dowRows.reduce((a, b) => (b.avg_occ > a.avg_occ ? b : a));
+
   return {
     peakDay: {
-      day: peakRows[0].day_name,
-      averageOccupancy: Math.round(peakRows[0].avg_occ),
+      day: weekdayLongName(peakDow.dow),
+      averageOccupancy: Math.round(peakDow.avg_occ),
     },
     averageOccupancy: Math.round(avgRows[0]?.avg_occ ?? 0),
     quietestTime: {
@@ -378,6 +384,7 @@ export async function getWeeklyUsage(): Promise<WeeklyUsage | null> {
       label: formatSlotLabel(popular.hour, popular.minute),
       averageOccupancy: Math.round(popular.avg_occ),
     },
+    dailyAverages,
   };
 }
 
