@@ -11,6 +11,7 @@
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { isDbConfigured } from "@/lib/db";
+import { getPostHogClient } from "@/lib/posthog-server";
 import { POOL_CAPACITY } from "@/lib/config";
 import {
   createReading,
@@ -126,6 +127,15 @@ export async function POST(request: Request) {
 
   const row = await createReading(fields);
   if (!row) return noDatabase();
+
+  const posthog = getPostHogClient();
+  posthog.capture({
+    distinctId: "admin",
+    event: "admin_reading_created",
+    properties: { occupancy: row.occupancy, capacity: row.capacity },
+  });
+  await posthog.flush();
+
   return NextResponse.json({ row: serialize(row) });
 }
 
@@ -150,6 +160,15 @@ export async function PATCH(request: Request) {
   if (!row) {
     return NextResponse.json({ error: "Reading not found." }, { status: 404 });
   }
+
+  const posthog = getPostHogClient();
+  posthog.capture({
+    distinctId: "admin",
+    event: "admin_reading_updated",
+    properties: { reading_id: id, occupancy: row.occupancy, capacity: row.capacity },
+  });
+  await posthog.flush();
+
   return NextResponse.json({ row: serialize(row) });
 }
 
@@ -169,5 +188,14 @@ export async function DELETE(request: Request) {
   if (!ok) {
     return NextResponse.json({ error: "Reading not found." }, { status: 404 });
   }
+
+  const posthog = getPostHogClient();
+  posthog.capture({
+    distinctId: "admin",
+    event: "admin_reading_deleted",
+    properties: { reading_id: id },
+  });
+  await posthog.flush();
+
   return NextResponse.json({ ok: true });
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Clock, Lock, WifiOff } from "lucide-react";
+import posthog from "posthog-js";
 import { LivePulse } from "./live-pulse";
 import { AnimatedNumber } from "./animated-number";
 import { Skeleton } from "./ui/skeleton";
@@ -47,6 +48,18 @@ export function HeroStatus({
     const i = setInterval(() => force((x) => x + 1), 30_000);
     return () => clearInterval(i);
   }, []);
+
+  // Fire pool_status_viewed once when live occupancy data arrives — top of resident funnel.
+  const viewedRef = useRef(false);
+  useEffect(() => {
+    if (status && !viewedRef.current) {
+      viewedRef.current = true;
+      posthog.capture("pool_status_viewed", {
+        crowd_level: status.crowdLevel,
+        occupancy_pct: Math.round((status.occupancy / status.capacity) * 100),
+      });
+    }
+  }, [status]);
 
   const effective = deriveEffectivePoolStatus(adminStatus);
 

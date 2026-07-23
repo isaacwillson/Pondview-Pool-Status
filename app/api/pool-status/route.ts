@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { readPoolStatus, writePoolStatus } from "@/lib/pool-status";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,5 +47,17 @@ export async function POST(request: Request) {
     isOpen,
     reason: reasonValue,
   });
+
+  const posthog = getPostHogClient();
+  posthog.capture({
+    distinctId: "admin",
+    event: "pool_status_updated",
+    properties: {
+      is_open: isOpen,
+      has_reason: Boolean(reasonValue),
+    },
+  });
+  await posthog.flush();
+
   return NextResponse.json(next);
 }

@@ -5,6 +5,7 @@ import {
   isAdminAuthenticated,
   issueSessionCookie,
 } from "@/lib/admin-auth";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,8 +24,15 @@ export async function POST(request: Request) {
       : undefined;
 
   if (!checkPassword(password)) {
+    const posthog = getPostHogClient();
+    posthog.capture({ distinctId: "admin", event: "admin_login_failed" });
+    await posthog.flush();
     return NextResponse.json({ error: "Incorrect password." }, { status: 401 });
   }
+
+  const posthog = getPostHogClient();
+  posthog.capture({ distinctId: "admin", event: "admin_login_succeeded" });
+  await posthog.flush();
 
   const { value, expires } = issueSessionCookie();
   const res = NextResponse.json({ ok: true });
