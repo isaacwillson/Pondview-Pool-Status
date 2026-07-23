@@ -17,7 +17,11 @@ import {
   type EffectivePoolStatus,
 } from "@/lib/effective-status";
 import type { AdminPoolStatus } from "@/lib/pool-status";
-import { formatHourLabel } from "@/lib/time";
+import {
+  formatHourLabel,
+  formatTrackingDays,
+  isTrackingDay,
+} from "@/lib/time";
 import type { PoolConditions, PoolStatus } from "@/lib/types";
 
 interface LiveConditionsProps {
@@ -40,6 +44,9 @@ export function LiveConditions({
 
   const effective = deriveEffectivePoolStatus(adminStatus);
   const closed = !effective.isOpen;
+  // Open, no fresh reading, and today isn't a tracking day → the pool is open
+  // but we're deliberately not measuring crowd levels.
+  const untracked = !closed && !status && !isLoading && !isTrackingDay();
   const occupancyPct = status
     ? pctFull(status.occupancy, status.capacity)
     : 0;
@@ -52,14 +59,18 @@ export function LiveConditions({
       ? crowdLabel(status.crowdLevel)
       : isLoading
         ? "…"
-        : "Awaiting reading";
+        : untracked
+          ? "Not tracked"
+          : "Awaiting reading";
   const crowdSecondary = closed
     ? effective.closedReason ?? "Pool currently closed"
     : status
       ? `${occupancyPct}% full`
       : isLoading
         ? "Connecting…"
-        : "No readings yet";
+        : untracked
+          ? "Live tracking off today"
+          : "No readings yet";
   const crowdAccent: "emerald" | "amber" | "pond" = closed
     ? "amber"
     : status
@@ -67,18 +78,16 @@ export function LiveConditions({
       : "pond";
   const crowdMuted = !closed && !status;
 
-  const trendPrimary = closed
-    ? "—"
-    : status
-      ? trendDisplay(status.trend)
-      : "—";
+  const trendPrimary = status ? trendDisplay(status.trend) : "—";
   const trendSecondary = closed
     ? "Check back during open hours"
     : status
       ? trendSubtitle(status.trend)
       : isLoading
         ? "Connecting…"
-        : "Available after a few readings";
+        : untracked
+          ? "Off today"
+          : "Available after a few readings";
   const trendMuted = closed || !status;
 
   return (
@@ -114,7 +123,7 @@ export function LiveConditions({
           secondary={trendSecondary}
           accent="pond"
           muted={trendMuted}
-          faded={closed}
+          faded={closed || untracked}
           className="lg:col-span-3"
         />
         {/* Row 2: Temperature + UV (related pair) */}
@@ -140,6 +149,7 @@ export function LiveConditions({
           label="Pool Hours"
           primary={`${formatHourLabel(conditions.openFromHour)} – ${formatHourLabel(conditions.openUntilHour)}`}
           secondary={hoursSecondary(effective, conditions)}
+          note={`Crowd levels tracked ${formatTrackingDays()}`}
           accent="pond"
           className="col-span-2 lg:col-span-6"
         />
@@ -157,6 +167,8 @@ interface ConditionCardProps {
   muted?: boolean;
   /** De-emphasize the whole card (e.g. when it carries no info while closed). */
   faded?: boolean;
+  /** Optional small footnote under the value (e.g. the tracking schedule). */
+  note?: string;
   className?: string;
 }
 
@@ -175,6 +187,7 @@ function ConditionCard({
   accent,
   muted,
   faded,
+  note,
   className,
 }: ConditionCardProps) {
   const s = ACCENT_STYLES[accent];
@@ -221,6 +234,11 @@ function ConditionCard({
           {primary}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">{secondary}</p>
+        {note ? (
+          <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-secondary/70 px-2.5 py-1 text-xs text-muted-foreground">
+            {note}
+          </p>
+        ) : null}
       </div>
     </Card>
   );
