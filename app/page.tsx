@@ -42,6 +42,7 @@ export default function HomePage() {
               adminStatus={adminStatus}
               isLoading={isLoading}
               weeklyAverage={data?.hourlyActivity?.average ?? null}
+              todayHasReadings={(data?.hourlyActivity?.today ?? null) !== null}
             />
           </div>
         </div>

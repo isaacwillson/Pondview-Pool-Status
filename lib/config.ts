@@ -21,6 +21,17 @@ export const POOL_LON = -74.5719;
 export const POOL_OPEN_HOUR = 10;
 export const POOL_CLOSE_HOUR = 20;
 
+/**
+ * Days of the week occupancy is actively tracked, as JS weekday indices
+ * (0 = Sunday … 6 = Saturday). The pool is open every day during POOL_OPEN
+ * hours, but crowd levels are only measured on these days. On other days the
+ * dashboard shows an "open, but not tracked today" state instead of a number.
+ *
+ * When the camera comes online and tracks every day, set this to
+ * [0, 1, 2, 3, 4, 5, 6] and all the "untracked day" messaging disappears.
+ */
+export const POOL_TRACKING_DAYS = [2, 3, 4, 6]; // Tue, Wed, Thu, Sat
+
 /** Reading cadence the camera is expected to use (5 minutes). */
 export const SENSOR_INTERVAL_MS = 5 * 60_000;
 
@@ -37,8 +48,11 @@ export const FRESH_READING_WINDOW_MS = 30 * 60_000;
 export const TREND_WINDOW_MS = 30 * 60_000;
 
 /**
- * Historical aggregates need at least this many distinct calendar days
- * of data before the "This Week's Usage" cards graduate from the
- * "Not enough data yet" placeholder.
+ * "This Week's Usage" graduates from its "Not enough data yet" placeholder
+ * once at least WEEKLY_USAGE_MIN_DAYS distinct days within the last
+ * WEEKLY_USAGE_WINDOW_DAYS have readings. The threshold is lower than the
+ * window because the pool is only tracked a few days a week (see
+ * POOL_TRACKING_DAYS) — requiring all 7 would mean the card never appears.
  */
-export const WEEKLY_USAGE_MIN_DAYS = 7;
+export const WEEKLY_USAGE_WINDOW_DAYS = 7;
+export const WEEKLY_USAGE_MIN_DAYS = 3;
