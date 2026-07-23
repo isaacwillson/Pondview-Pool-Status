@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import posthog from "posthog-js";
 
 export function LoginForm({ nextPath }: { nextPath: string }) {
   const [password, setPassword] = useState("");
@@ -14,6 +15,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
+    posthog.capture("admin_login_attempted");
     try {
       const res = await fetch("/api/admin-auth", {
         method: "POST",
@@ -24,8 +26,10 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || "Sign-in failed.");
       }
+      posthog.identify("admin");
       window.location.href = nextPath;
     } catch (e) {
+      posthog.captureException(e);
       setError((e as Error).message);
       setSubmitting(false);
     }

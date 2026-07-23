@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, Clock, LogOut } from "lucide-react";
+import posthog from "posthog-js";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -66,7 +67,12 @@ export function AdminPoolControls({ initial }: AdminPoolControlsProps) {
       setForceClose(!updated.isOpen);
       setReason(updated.reason ?? "");
       setSavedAt(Date.now());
+      posthog.capture("pool_override_saved", {
+        force_close: !updated.isOpen,
+        has_reason: Boolean(updated.reason),
+      });
     } catch (e) {
+      posthog.captureException(e);
       setError((e as Error).message);
     } finally {
       setSubmitting(false);
@@ -74,6 +80,8 @@ export function AdminPoolControls({ initial }: AdminPoolControlsProps) {
   }
 
   async function handleLogout() {
+    posthog.capture("admin_logged_out");
+    posthog.reset();
     await fetch("/api/admin-auth", { method: "DELETE" });
     window.location.href = "/admin/login";
   }
