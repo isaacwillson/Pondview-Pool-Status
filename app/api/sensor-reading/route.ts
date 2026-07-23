@@ -15,6 +15,7 @@ import { NextResponse } from "next/server";
 import { POOL_CAPACITY } from "@/lib/config";
 import { insertReading } from "@/lib/occupancy-history";
 import { authenticateSensorRequest } from "@/lib/sensor-auth";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,11 +55,24 @@ export async function POST(request: Request) {
     recorded = parsed;
   }
 
+  const roundedOccupancy = Math.round(occupancy);
   await insertReading({
-    occupancy: Math.round(occupancy),
+    occupancy: roundedOccupancy,
     capacity: POOL_CAPACITY,
     recordedAt: recorded,
   });
+
+  const posthog = getPostHogClient();
+  posthog.capture({
+    distinctId: "sensor",
+    event: "sensor_reading_recorded",
+    properties: {
+      occupancy: roundedOccupancy,
+      capacity: POOL_CAPACITY,
+      occupancy_pct: Math.round((roundedOccupancy / POOL_CAPACITY) * 100),
+    },
+  });
+  await posthog.flush();
 
   return NextResponse.json({ ok: true });
 }
