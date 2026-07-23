@@ -69,6 +69,11 @@ export function weekdayLongName(day: number): string {
   return WEEKDAY_LONG[day] ?? "";
 }
 
+/** "Tue" for a 0–6 weekday index. */
+export function weekdayShortName(day: number): string {
+  return WEEKDAY_SHORT[day] ?? "";
+}
+
 /**
  * Human list of the tracking days, e.g. "Tue, Wed, Thu & Sat". Derived from
  * POOL_TRACKING_DAYS so it stays correct if the schedule changes.

@@ -184,6 +184,8 @@ export function buildSnapshot(now: Date = new Date()): PoolDataSnapshot {
       averageOccupancy: 23,
       quietestTime: { label: "10:30 AM", averageOccupancy: 4 },
       mostPopularTime: { label: "6:30 PM", averageOccupancy: 41 },
+      // Per weekday (Sun…Sat); untracked days are 0, Saturday is the peak.
+      dailyAverages: [0, 0, 24, 31, 38, 0, 47],
     },
   };
 }
