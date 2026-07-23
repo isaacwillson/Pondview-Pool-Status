@@ -78,5 +78,5 @@ export interface PoolDataSnapshot {
   /** Three time-period datasets for the chart. null if no readings at all. */
   hourlyActivity: HourlyActivitySet | null;
   /** null if fewer than 7 calendar days of recent readings. */
-  weeklyUsage: WeeklyUsage | null;
+  weeklyUsage: WeeklyUsage;
 }
