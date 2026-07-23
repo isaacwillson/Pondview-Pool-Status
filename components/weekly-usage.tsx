@@ -4,7 +4,8 @@ import { Calendar, Crown, Moon } from "lucide-react";
 import { Card } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
 import { cn, pctFull } from "@/lib/utils";
-import { formatTrackingDays } from "@/lib/time";
+import { formatTrackingDays, weekdayShortName } from "@/lib/time";
+import { POOL_TRACKING_DAYS } from "@/lib/config";
 import type { WeeklyUsage } from "@/lib/types";
 
 interface WeeklyUsageProps {
@@ -12,18 +13,6 @@ interface WeeklyUsageProps {
   capacity: number | null;
   isLoading: boolean;
 }
-
-// Untracked days (Mon/Fri/Sun) carry no data, so they render as faint
-// placeholders — reinforcing that usage stats only cover the tracked days.
-const WEEK_BARS = [
-  { day: "Sun", value: 0, tracked: false },
-  { day: "Mon", value: 0, tracked: false },
-  { day: "Tue", value: 0.34, tracked: true },
-  { day: "Wed", value: 0.5, tracked: true },
-  { day: "Thu", value: 0.62, tracked: true },
-  { day: "Fri", value: 0, tracked: false },
-  { day: "Sat", value: 0.95, tracked: true },
-];
 
 export function WeeklyUsageSection({
   data,
@@ -38,6 +27,19 @@ export function WeeklyUsageSection({
   const peakPct = pctFull(data.peakDay.averageOccupancy, capacity);
   const quietPct = pctFull(data.quietestTime.averageOccupancy, capacity);
   const popularPct = pctFull(data.mostPopularTime.averageOccupancy, capacity);
+
+  // Build the Peak Day sparkline from real per-weekday averages. Heights are
+  // relative to the busiest day so the shape reads clearly; untracked days (or
+  // any day with no readings) render as faint stubs.
+  const maxDaily = Math.max(...data.dailyAverages, 1);
+  const peakIndex = data.dailyAverages.indexOf(Math.max(...data.dailyAverages));
+  const dayBars = data.dailyAverages.map((avg, day) => ({
+    label: weekdayShortName(day),
+    avg,
+    tracked: POOL_TRACKING_DAYS.includes(day),
+    isPeak: day === peakIndex && avg > 0,
+    fraction: avg / maxDaily,
+  }));
 
   return (
     <section aria-labelledby="weekly-heading">
@@ -86,24 +88,26 @@ export function WeeklyUsageSection({
           chipTone="warning"
         >
           <div className="mt-4 flex h-[68px] items-end gap-1.5">
-            {WEEK_BARS.map((b, i) => (
-              <div key={b.day} className="flex flex-1 flex-col items-center gap-1.5">
-                {b.tracked ? (
+            {dayBars.map((b, i) => (
+              <div key={b.label} className="flex flex-1 flex-col items-center gap-1.5">
+                {b.avg > 0 ? (
                   <div
                     className={cn(
                       "w-full rounded-sm bg-gradient-to-t",
-                      b.day === "Sat"
+                      b.isPeak
                         ? "from-amber-400 to-amber-300"
                         : "from-pond-200 to-pond-100",
                     )}
                     style={{
-                      height: `${b.value * 56}px`,
+                      // Floor so a busy-but-not-peak day is still visible.
+                      height: `${Math.max(4, b.fraction * 56)}px`,
                       animation: `bar-grow 0.8s cubic-bezier(0.16, 1, 0.3, 1) ${i * 50}ms both`,
                       transformOrigin: "bottom",
                     }}
+                    title={`${b.label}: avg ${b.avg} people`}
                   />
                 ) : (
-                  // Untracked day — a faint stub instead of a bar.
+                  // No readings this day (untracked, or simply none) → faint stub.
                   <div
                     className="w-full rounded-sm border border-dashed border-border/70"
                     style={{ height: "6px" }}
@@ -113,14 +117,14 @@ export function WeeklyUsageSection({
                 <span
                   className={cn(
                     "text-[10px] uppercase tracking-wider",
-                    b.day === "Sat"
+                    b.isPeak
                       ? "font-semibold text-amber-700"
-                      : b.tracked
+                      : b.avg > 0
                         ? "text-muted-foreground"
                         : "text-muted-foreground/40",
                   )}
                 >
-                  {b.day}
+                  {b.label}
                 </span>
               </div>
             ))}

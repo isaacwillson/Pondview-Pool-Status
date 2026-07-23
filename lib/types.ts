@@ -68,6 +68,12 @@ export interface WeeklyUsage {
   averageOccupancy: number;
   quietestTime: { label: string; averageOccupancy: number };
   mostPopularTime: { label: string; averageOccupancy: number };
+  /**
+   * Average occupancy per weekday over the trailing week, indexed by JS
+   * weekday (0 = Sunday … 6 = Saturday). Untracked days are 0. Drives the
+   * Peak Day sparkline.
+   */
+  dailyAverages: number[];
 }
 
 export interface PoolDataSnapshot {
