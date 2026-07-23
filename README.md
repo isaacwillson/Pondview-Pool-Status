@@ -41,6 +41,16 @@ Residents check on their phones on the way out the door — every section is bui
 
 The site is schedule-aware (shows Closed outside pool hours) and every section degrades gracefully to "not enough data yet" states when readings are missing.
 
+### Tracking schedule
+
+The pool is open every day, but crowd levels are only tracked on certain days (currently **Tuesday, Wednesday, Thursday & Saturday** — see `POOL_TRACKING_DAYS` in [lib/config.ts](lib/config.ts)). The dashboard makes this explicit so an untracked day never looks broken:
+
+- On an untracked day the hero reads **"Open · live tracking off today,"** names the next tracked day, and points to the typical pattern — it never shows a stale number or a fake "empty."
+- A **"Crowd levels tracked Tue–Thu & Sat"** line appears on the Pool Hours card every day, and Weekly Usage states it aggregates only those days.
+- A staleness guard (`FRESH_READING_WINDOW_MS`) ensures an old reading is never presented as live across the multi-day gaps.
+
+When the camera goes live and tracks every day, set `POOL_TRACKING_DAYS` to all seven and this messaging disappears automatically.
+
 ## Data pipeline
 
 ```

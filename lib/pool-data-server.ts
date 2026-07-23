@@ -22,6 +22,7 @@ import type {
   PoolStatus,
 } from "./types";
 import { getWeather } from "./weather";
+import { FRESH_READING_WINDOW_MS } from "./config";
 
 export async function buildLiveSnapshot(
   now: Date = new Date(),
@@ -51,8 +52,16 @@ export async function buildLiveSnapshot(
       ? { today, yesterday, average }
       : null;
 
+  // Only treat a reading as "live" if it's recent. Otherwise (overnight gaps,
+  // and especially the days we don't track) a hours-or-days-old reading would
+  // be shown as the current crowd level. A stale reading → no live status, and
+  // the hero picks the right "no live data" state instead.
+  const isFresh =
+    latest !== null &&
+    now.getTime() - latest.recordedAt.getTime() <= FRESH_READING_WINDOW_MS;
+
   let status: PoolStatus | null = null;
-  if (latest) {
+  if (latest && isFresh) {
     const activity = latest.occupancy / Math.max(1, latest.capacity);
     status = {
       crowdLevel: activityToCrowdLevel(activity),
