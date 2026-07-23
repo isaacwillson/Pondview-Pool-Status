@@ -13,6 +13,7 @@ import {
   POOL_TIMEZONE,
   TREND_WINDOW_MS,
   WEEKLY_USAGE_MIN_DAYS,
+  WEEKLY_USAGE_WINDOW_DAYS,
 } from "./config";
 import { ensureSchema, getSql } from "./db";
 import type { HourlyActivity, Trend, WeeklyUsage } from "./types";
@@ -311,7 +312,13 @@ export async function getWeeklyUsage(): Promise<WeeklyUsage | null> {
   if (!sql) return null;
   await ensureSchema();
 
-  if ((await countDistinctRecentDays(WEEKLY_USAGE_MIN_DAYS)) < WEEKLY_USAGE_MIN_DAYS) {
+  // Enough distinct days *within the trailing week* — the window and the
+  // threshold are separate so a pool tracked only a few days a week can still
+  // qualify (see WEEKLY_USAGE_WINDOW_DAYS / WEEKLY_USAGE_MIN_DAYS).
+  if (
+    (await countDistinctRecentDays(WEEKLY_USAGE_WINDOW_DAYS)) <
+    WEEKLY_USAGE_MIN_DAYS
+  ) {
     return null;
   }
 

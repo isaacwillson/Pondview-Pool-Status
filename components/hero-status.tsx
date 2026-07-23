@@ -14,7 +14,14 @@ import {
   type EffectivePoolStatus,
 } from "@/lib/effective-status";
 import { activityToCrowdLevel, crowdLabel, crowdSubtitle } from "@/lib/mock-data";
-import { currentLocalHour, formatHourLabel } from "@/lib/time";
+import {
+  currentLocalHour,
+  formatHourLabel,
+  formatTrackingDays,
+  isTrackingDay,
+  nextTrackingDay,
+  weekdayLongName,
+} from "@/lib/time";
 import { POOL_CLOSE_HOUR, POOL_OPEN_HOUR } from "@/lib/config";
 
 interface HeroStatusProps {
@@ -22,6 +29,9 @@ interface HeroStatusProps {
   adminStatus: AdminPoolStatus | null;
   isLoading: boolean;
   weeklyAverage: HourlyActivity[] | null;
+  /** Whether any reading has been recorded for today (distinguishes a
+   *  just-opened day from a mid-day tracking gap). */
+  todayHasReadings: boolean;
 }
 
 export function HeroStatus({
@@ -29,6 +39,7 @@ export function HeroStatus({
   adminStatus,
   isLoading,
   weeklyAverage,
+  todayHasReadings,
 }: HeroStatusProps) {
   // Refresh relative-time strings and recompute the schedule branch.
   const [, force] = useState(0);
@@ -39,6 +50,7 @@ export function HeroStatus({
 
   const effective = deriveEffectivePoolStatus(adminStatus);
 
+  // Outside open hours / admin-closed.
   if (!effective.isOpen) {
     return (
       <HeroShell compact>
@@ -46,17 +58,32 @@ export function HeroStatus({
       </HeroShell>
     );
   }
-  if (!status) {
-    if (isLoading) return <HeroStatusSkeleton />;
+
+  // Open with a fresh reading — the normal live view.
+  if (status) {
     return (
-      <HeroShell compact>
-        <EmptyHero />
+      <HeroShell>
+        <LiveHero status={status} weeklyAverage={weeklyAverage} />
       </HeroShell>
     );
   }
+
+  if (isLoading) return <HeroStatusSkeleton />;
+
+  // Open, but no fresh reading. Why depends on whether today is tracked.
+  if (!isTrackingDay()) {
+    return (
+      <HeroShell compact>
+        <UntrackedHero />
+      </HeroShell>
+    );
+  }
+
+  // A tracking day with no fresh reading: a just-opened day starts empty;
+  // otherwise today had readings that have since gone stale.
   return (
-    <HeroShell>
-      <LiveHero status={status} weeklyAverage={weeklyAverage} />
+    <HeroShell compact>
+      {todayHasReadings ? <PausedHero /> : <JustOpenedHero />}
     </HeroShell>
   );
 }
@@ -205,33 +232,108 @@ function ClosedHero({ effective }: { effective: EffectivePoolStatus }) {
 }
 
 // ---------------------------------------------------------------------------
-// Empty hero — sensor pipeline is wired up but no readings yet.
+// Untracked-day hero — pool is OPEN, but today isn't a tracking day.
 // ---------------------------------------------------------------------------
 
-function EmptyHero() {
+function UntrackedHero() {
+  const nextDay = weekdayLongName(nextTrackingDay());
+
   return (
     <div className="flex flex-col">
       <Eyebrow
         icon={
           <span
-            className="inline-flex h-2.5 w-2.5 rounded-full bg-muted-foreground/40"
+            className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white/70"
             aria-hidden
           />
         }
       >
-        Awaiting sensor data
+        Open · live tracking off today
       </Eyebrow>
-      <Headline>Standing by</Headline>
+      <Headline>Open</Headline>
       <Subtitle>
-        Live occupancy will appear here as soon as it&apos;s available.
+        The pool is open today ({formatHourLabel(POOL_OPEN_HOUR)}–
+        {formatHourLabel(POOL_CLOSE_HOUR)}), but live crowd levels aren&apos;t
+        tracked today. Live tracking is back {nextDay}.
       </Subtitle>
-      <div className="mt-10 flex flex-wrap items-center gap-3">
-        <Badge variant="outline" className="gap-1.5 rounded-full bg-white/60 px-3 py-1 text-sm">
-          <WifiOff className="h-3.5 w-3.5 text-muted-foreground" />
-          No readings yet
-        </Badge>
+      <div className="mt-8">
+        <TrackingBadge />
+        <p className="mt-4 max-w-md text-sm text-muted-foreground">
+          Check <span className="font-medium text-foreground">Best Times to
+          Visit</span> below for the pool&apos;s typical pattern.
+        </p>
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Just-opened hero — a tracking day, pool just opened, no readings yet.
+// Starts the day at empty, which is accurate before anyone arrives.
+// ---------------------------------------------------------------------------
+
+function JustOpenedHero() {
+  return (
+    <div className="flex flex-col">
+      <Eyebrow icon={<LivePulse />}>Live · Pool Status</Eyebrow>
+      <Headline>{crowdLabel("empty")}</Headline>
+      <div className="mt-6 flex items-baseline gap-3">
+        <span
+          aria-label="0 percent full"
+          className="font-display text-[clamp(3.5rem,9vw,6rem)] font-normal leading-none tracking-tight text-foreground"
+        >
+          0<span className="text-[0.55em] text-pond-600">%</span>
+        </span>
+        <span className="font-display text-2xl italic text-muted-foreground">
+          full
+        </span>
+      </div>
+      <Subtitle>
+        No readings in yet today — the pool opens empty and fills as people
+        arrive. Live crowd levels update through the day.
+      </Subtitle>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Paused hero — a tracking day that had readings, but the latest is stale.
+// ---------------------------------------------------------------------------
+
+function PausedHero() {
+  return (
+    <div className="flex flex-col">
+      <Eyebrow
+        icon={
+          <WifiOff className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+        }
+      >
+        Live · paused
+      </Eyebrow>
+      <Headline>Open</Headline>
+      <Subtitle>
+        The pool is open, but we&apos;re between readings right now — the live
+        crowd level will update shortly. See{" "}
+        <span className="font-medium text-foreground">Best Times to Visit</span>{" "}
+        below in the meantime.
+      </Subtitle>
+      <div className="mt-8">
+        <TrackingBadge />
+      </div>
+    </div>
+  );
+}
+
+/** Small pill stating which days occupancy is tracked. */
+function TrackingBadge() {
+  return (
+    <Badge
+      variant="outline"
+      className="gap-1.5 rounded-full bg-white/60 px-3 py-1 text-sm"
+    >
+      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+      Crowd levels tracked {formatTrackingDays()}
+    </Badge>
   );
 }
 

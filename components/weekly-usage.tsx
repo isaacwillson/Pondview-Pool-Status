@@ -4,6 +4,7 @@ import { Calendar, Crown, Moon } from "lucide-react";
 import { Card } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
 import { cn, pctFull } from "@/lib/utils";
+import { formatTrackingDays } from "@/lib/time";
 import type { WeeklyUsage } from "@/lib/types";
 
 interface WeeklyUsageProps {
@@ -12,14 +13,16 @@ interface WeeklyUsageProps {
   isLoading: boolean;
 }
 
+// Untracked days (Mon/Fri/Sun) carry no data, so they render as faint
+// placeholders — reinforcing that usage stats only cover the tracked days.
 const WEEK_BARS = [
-  { day: "Mon", value: 0.34 },
-  { day: "Tue", value: 0.28 },
-  { day: "Wed", value: 0.42 },
-  { day: "Thu", value: 0.55 },
-  { day: "Fri", value: 0.72 },
-  { day: "Sat", value: 0.92 },
-  { day: "Sun", value: 0.78 },
+  { day: "Sun", value: 0, tracked: false },
+  { day: "Mon", value: 0, tracked: false },
+  { day: "Tue", value: 0.34, tracked: true },
+  { day: "Wed", value: 0.5, tracked: true },
+  { day: "Thu", value: 0.62, tracked: true },
+  { day: "Fri", value: 0, tracked: false },
+  { day: "Sat", value: 0.95, tracked: true },
 ];
 
 export function WeeklyUsageSection({
@@ -49,8 +52,8 @@ export function WeeklyUsageSection({
           This Week’s Usage
         </h2>
         <p className="mt-3 max-w-2xl text-balance text-base text-muted-foreground">
-          Aggregated trends from the last seven days to help you find your
-          preferred rhythm.
+          Aggregated from the pool&apos;s tracked days ({formatTrackingDays()})
+          over the past week, to help you find your preferred rhythm.
         </p>
       </div>
 
@@ -82,28 +85,39 @@ export function WeeklyUsageSection({
           chip="Busier than usual"
           chipTone="warning"
         >
-          <div className="mt-4 flex items-end gap-1.5">
+          <div className="mt-4 flex h-[68px] items-end gap-1.5">
             {WEEK_BARS.map((b, i) => (
               <div key={b.day} className="flex flex-1 flex-col items-center gap-1.5">
-                <div
-                  className={cn(
-                    "w-full rounded-sm bg-gradient-to-t",
-                    b.day === "Sat"
-                      ? "from-amber-400 to-amber-300"
-                      : "from-pond-200 to-pond-100",
-                  )}
-                  style={{
-                    height: `${b.value * 56}px`,
-                    animation: `bar-grow 0.8s cubic-bezier(0.16, 1, 0.3, 1) ${i * 50}ms both`,
-                    transformOrigin: "bottom",
-                  }}
-                />
+                {b.tracked ? (
+                  <div
+                    className={cn(
+                      "w-full rounded-sm bg-gradient-to-t",
+                      b.day === "Sat"
+                        ? "from-amber-400 to-amber-300"
+                        : "from-pond-200 to-pond-100",
+                    )}
+                    style={{
+                      height: `${b.value * 56}px`,
+                      animation: `bar-grow 0.8s cubic-bezier(0.16, 1, 0.3, 1) ${i * 50}ms both`,
+                      transformOrigin: "bottom",
+                    }}
+                  />
+                ) : (
+                  // Untracked day — a faint stub instead of a bar.
+                  <div
+                    className="w-full rounded-sm border border-dashed border-border/70"
+                    style={{ height: "6px" }}
+                    aria-hidden
+                  />
+                )}
                 <span
                   className={cn(
                     "text-[10px] uppercase tracking-wider",
                     b.day === "Sat"
                       ? "font-semibold text-amber-700"
-                      : "text-muted-foreground",
+                      : b.tracked
+                        ? "text-muted-foreground"
+                        : "text-muted-foreground/40",
                   )}
                 >
                   {b.day}
@@ -127,7 +141,7 @@ export function WeeklyUsageSection({
               aria-hidden
             />
             <p className="text-sm leading-snug text-muted-foreground">
-              Tends to peak Friday–Sunday evenings.
+              Tends to peak on Saturday evenings.
             </p>
           </div>
         </AnalyticCard>
@@ -214,8 +228,8 @@ function WeeklyUsageEmpty() {
           This Week’s Usage
         </h2>
         <p className="mt-3 max-w-2xl text-balance text-base text-muted-foreground">
-          Aggregated trends from the last seven days to help you find your
-          preferred rhythm.
+          Aggregated from the pool&apos;s tracked days ({formatTrackingDays()})
+          over the past week, to help you find your preferred rhythm.
         </p>
       </div>
 

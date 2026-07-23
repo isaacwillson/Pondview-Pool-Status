@@ -5,7 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { cn } from "@/lib/utils";
 import { crowdLabelShort } from "@/lib/mock-data";
-import { currentLocalHour, formatHourLabel } from "@/lib/time";
+import {
+  currentLocalHour,
+  formatHourLabel,
+  formatTrackingDays,
+  isTrackingDay,
+} from "@/lib/time";
 import { POOL_CLOSE_HOUR, POOL_OPEN_HOUR, POOL_TIMEZONE } from "@/lib/config";
 import type { CrowdLevel, HourlyActivity, HourlyActivitySet } from "@/lib/types";
 
@@ -38,7 +43,11 @@ const LEGEND: { level: CrowdLevel; swatch: string }[] = [
 ];
 
 export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
-  const [tab, setTab] = useState<TabId>("today");
+  // On days the pool isn't tracked, "Today" has no data — start on the
+  // typical-pattern tab so the chart opens on something useful.
+  const [tab, setTab] = useState<TabId>(() =>
+    isTrackingDay() ? "today" : "average",
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const nudgedRef = useRef(false);
   const [showLeftFade, setShowLeftFade] = useState(false);
@@ -411,18 +420,20 @@ function formatPoolDate(dayOffset: number): string {
 function tabContext(tab: TabId): string {
   switch (tab) {
     case "today":
-      return `Showing today · ${formatPoolDate(0)}`;
+      return isTrackingDay()
+        ? `Showing today · ${formatPoolDate(0)}`
+        : "Not tracked today — see Weekly avg. for the typical pattern";
     case "yesterday":
       return `Showing ${formatPoolDate(-1)}`;
     case "average":
-      return "Average of the last 7 days";
+      return `Average of the pool's tracked days (${formatTrackingDays()})`;
   }
 }
 
 function emptyTabTitle(tab: TabId): string {
   switch (tab) {
     case "today":
-      return "No readings yet today";
+      return isTrackingDay() ? "No readings yet today" : "Today isn't tracked";
     case "yesterday":
       return "No data for yesterday";
     case "average":
@@ -433,11 +444,13 @@ function emptyTabTitle(tab: TabId): string {
 function emptyTabBody(tab: TabId): string {
   switch (tab) {
     case "today":
-      return "Today's activity curve will fill in here as the deck sensor reports occupancy throughout the day.";
+      return isTrackingDay()
+        ? "Today's activity curve will fill in here as occupancy is reported throughout the day."
+        : `Crowd levels are tracked ${formatTrackingDays()}. Switch to Weekly avg. to see the pool's typical pattern.`;
     case "yesterday":
       return "Yesterday's curve will appear once a full day of readings has been recorded.";
     case "average":
-      return "A 7-day rolling average will appear here after readings have come in for at least a few days.";
+      return "A rolling average will appear here after readings have come in on a few tracked days.";
   }
 }
 
