@@ -1,17 +1,24 @@
 # Pondview Pool Status — Session Handoff
 
-This document exists so a fresh Claude Code session (or a fresh teammate) can pick up the project without re-deriving context. Read it before making changes. Last updated by the previous session — keep it current if you make significant changes.
+This document exists so a fresh Claude Code session (or a fresh teammate) can pick up the project without re-deriving context. Read it before making changes. **Keep it current** if you make significant changes.
+
+> This branch (`handoff-doc`) is periodically merged up from `master` so it carries the real code alongside this doc. It is a *reference* branch — don't build features here; branch off `master`.
 
 ---
 
 ## 1. Project at a glance
 
-A live, resident-facing web dashboard for the pool at **Pondview Estates (New Jersey)**. Residents open the site to see whether the pool is busy, how full it is, what the weather's doing, and what the historical activity looks like. The leasing office can force the pool closed for maintenance / special closures.
+A live, resident-facing web dashboard for the pool at **Pondview Estates (Wharton, New Jersey)**. Residents open the site to see whether the pool is busy, how full it is, the weather, and the historical activity pattern. The leasing office can force the pool closed for maintenance.
 
-- **Deployed at**: a Vercel project owned by the user. Linked from the property site at https://pondviewestatesnj.com (the dashboard footer links back to /contact/).
-- **GitHub**: `isaacwillson/Pondview-Pool-Status` on the `master` branch. PRs always target `master`.
-- **Audience**: residents (mostly mobile). The design is intentionally premium — Apple/Airbnb/Linear adjacent — because it's a real product the property manager will judge.
-- **User profile**: the project owner is the resident, not a developer by trade. They follow along well but appreciate plain-language explanations and short answers. Match their tone.
+- **Deployed at**: a Vercel project owned by the user. Linked from the property site at https://pondviewestatesnj.com.
+- **GitHub**: `isaacwillson/Pondview-Pool-Status`, default branch `master`. **PRs always target `master`.**
+- **Audience**: residents, mostly on mobile. Design is intentionally premium (Apple/Airbnb/Linear adjacent) — it's a real product the property manager judges.
+- **User profile**: the owner (Isaac) is the resident, **early-career and mostly vibecoded this project**. He's using it to genuinely learn Next.js / TypeScript / Tailwind and wants to defend it in interviews. **Explain the _why_ behind changes, teach as you go, and offer small scoped exercises he can do himself.** Short, plain-language answers.
+
+### Current real-world status (important)
+
+- **The camera is NOT connected yet.** There is no live occupancy feed. Occupancy readings are being **entered by hand** through the admin **data editor** (`/admin/data`) — see §8. Everything downstream already runs on that data.
+- Because Isaac can only log data some days, occupancy is only tracked **Tuesday, Wednesday, Thursday & Saturday** (`POOL_TRACKING_DAYS`). The pool is open every day, but on untracked days the UI says so explicitly instead of showing a stale or fake number. See §5.5.
 
 ---
 
@@ -23,303 +30,224 @@ A live, resident-facing web dashboard for the pool at **Pondview Estates (New Je
 | Runtime | React 19, Node.js (server functions) |
 | Styling | Tailwind 3.4, custom shadcn-style primitives in `components/ui` |
 | Icons | `lucide-react` |
-| Hosting | Vercel |
-| Persistent KV | Upstash Redis (admin override state) |
-| Postgres | Neon (occupancy time-series) |
+| Hosting | Vercel (auto-deploy on push to `master`; PRs get preview URLs) |
+| Persistent KV | Upstash Redis (admin override + demo-mode flag) |
+| Postgres | Neon (`occupancy_readings` time-series) |
 | Weather | Open-Meteo (no API key, free tier) |
+| Analytics | **PostHog** (`posthog-js` client + `posthog-node` server) — added in PR #27 |
 | Future camera | Eagle Eye Networks — not yet wired (see §10) |
 
-**No client-side data libs** (no SWR, no React Query). Polling is via plain `useEffect + setInterval` in two custom hooks.
+**No client-side data libs** (no SWR/React Query). Polling is plain `useEffect + setInterval` in two custom hooks.
 
 ---
 
-## 3. Data architecture — the four sources of truth
+## 3. Data architecture — the sources of truth
 
 Every value on screen flows from exactly one of these. When debugging, trace upstream until you hit one.
 
-| Source | Where it lives | What it owns | Mutation cadence |
-|---|---|---|---|
-| **Postgres** (Neon) | `DATABASE_URL` env var | `occupancy_readings` time-series (one row per ~5 min from the camera, eventually) | Frequent writes once the camera is wired |
-| **Upstash Redis** | `UPSTASH_REDIS_REST_URL` + `_TOKEN` | The admin override: `{ isOpen, reason, lastChangedAt }` | Only when admin clicks Save |
-| **Compile-time constants** | `lib/config.ts` | Pool hours, capacity, lat/lon, timezone, polling/freshness windows | Only via code change + redeploy |
-| **Open-Meteo** | Public API, called from `lib/weather.ts` | Air temperature + UV index | 10-min cache; we hit them ~6×/hour total |
+| Source | Where it lives | What it owns |
+|---|---|---|
+| **Postgres** (Neon) | `DATABASE_URL` | `occupancy_readings` time-series (one row per reading). All occupancy aggregates derive from this. |
+| **Upstash Redis** | `UPSTASH_REDIS_REST_URL` + `_TOKEN` | Two tiny keys: the admin override (`pondview:pool-status`) and the demo-mode flag (`pondview:demo-mode`). |
+| **Compile-time constants** | `lib/config.ts` | Pool hours, capacity, **tracking days**, lat/lon, timezone, freshness/trend windows. See §6. |
+| **Open-Meteo** | Public API via `lib/weather.ts` | Air temperature + UV index (10-min cache + fallback). |
 
-**The combined "what should the resident actually see" decision** comes from `lib/effective-status.ts` (`deriveEffectivePoolStatus`), which mixes the Upstash override with the schedule (config) and the current pool-local time.
+The **"what should the resident see"** open/closed decision is `lib/effective-status.ts::deriveEffectivePoolStatus` (admin override × schedule × pool-local time). The **whole snapshot** is assembled by `lib/pool-data-server.ts::buildLiveSnapshot`, unless **demo mode** is on (§8), in which case `/api/pool-data` serves `lib/mock-data.ts::buildSnapshot()` instead — no DB touched.
 
 ---
 
-## 4. File map (annotated)
+## 4. File map (annotated — current)
 
 ```
-app/                       Next.js App Router
-  layout.tsx               Fonts + base layout
-  page.tsx                 Resident dashboard (client component)
-  globals.css              Tailwind base + custom keyframes (fade-in, bar-grow)
+app/
+  layout.tsx                Fonts + base layout; wraps children in <PHProvider> (PostHog)
+  page.tsx                  Resident dashboard (client). Also calls useScrollRestoration().
+  globals.css               Tailwind base + keyframes (fade-in-up, bar-grow); .stagger, .no-scrollbar
   admin/
-    login/page.tsx         Server: redirects if already authed
-    login/login-form.tsx   Client: POSTs to /api/admin-auth
-    pool/page.tsx          Server: redirects if NOT authed; reads Upstash; passes to client
-    pool/admin-pool-controls.tsx   Client: the "Force the pool closed" UI
+    login/…                 Admin login (POSTs /api/admin-auth)
+    pool/…                  "Force the pool closed" UI (Upstash override)
+    data/page.tsx           Server: auth-gated; lists readings + reads demo flag
+    data/data-table.tsx     Client: spreadsheet editor — add/edit/delete readings, search,
+                              scroll window, and the DEMO MODE toggle
   api/
-    pool-data/route.ts        GET — composes the resident snapshot, edge-cached 30s
-    pool-status/route.ts      GET (public, edge-cached 3s) + POST (admin-only) — Upstash
-    admin-auth/route.ts       POST (login), DELETE (logout), GET (session check)
-    sensor-reading/route.ts   POST (camera-only, Bearer SENSOR_API_KEY) — INSERT into Postgres
+    pool-data/route.ts        GET — resident snapshot; serves demo snapshot when demo mode on
+    pool-status/route.ts      GET (public) + POST (admin) — Upstash override
+    admin-auth/route.ts       POST login / DELETE logout / GET session check
+    admin-readings/route.ts   GET/POST/PATCH/DELETE — CRUD over occupancy_readings (admin-only)
+    demo-mode/route.ts        GET/POST — toggle demo mode (admin-only)
+    sensor-reading/route.ts   POST (camera-only, Bearer SENSOR_API_KEY) — built, not yet used
 
 components/
-  hero-status.tsx          The big "X% full" hero. Three render paths via early returns:
-                             LiveHero / ClosedHero / EmptyHero, all wrapped in HeroShell.
-                             ClosedHero + EmptyHero use HeroShell's `compact` (single-column)
-                             layout and have NO "—%" occupancy block — only LiveHero shows the
-                             number + CapacityBar. LiveHero has no decorative pills (removed);
-                             its eyebrow pulse is always green.
-  best-times-chart.tsx     The bar chart with Today/Yesterday/Weekly avg. tabs. Y-axis shows
-                             25/50/75/100% scale; bars have hover tooltips (hour + % full +
-                             crowd label). Card uses warm bg-sand-50.
-  live-conditions.tsx      The 5-card row, on a 6-col lg grid: Crowd + Air Temp are the primary
-                             tier (half-width each), Trend / UV / Pool Hours the secondary row.
-  weekly-usage.tsx         The 4 analytics cards at the bottom (resident-friendly chip copy)
-  site-header.tsx          Top nav + status pill. Open pill reads "Open" (green pulse); closed
-                             pill reads "Closed by management" / "Outside pool hours". Secondary
-                             nav links dim when the pool is closed.
-  site-footer.tsx          One link to https://pondviewestatesnj.com/contact/ (target=_blank)
-  live-pulse.tsx           The pulsing green dot used for "Live" indicators
-  animated-number.tsx      Count-up animation via requestAnimationFrame
-  ui/                      Shadcn-style primitives (Card/Badge/Button/Switch/Skeleton/Separator)
+  hero-status.tsx          The big hero. Render paths (open+fresh → LiveHero; open+untracked-day →
+                             UntrackedHero; open+tracking-day-no-readings → JustOpenedHero "0%";
+                             open+stale → PausedHero; closed → ClosedHero). LiveHero has a
+                             data-driven "typically quieter after X" QuieterHint.
+  best-times-chart.tsx     Today/Yesterday/Weekly-avg bar chart. Future hours = dashed ghost bars
+                             from the weekly average. Mobile: horizontal scroll with edge fades +
+                             a scroll-progress bar + a one-time "sweep" nudge on scroll-into-view.
+                             Defaults to Weekly avg. on untracked days.
+  live-conditions.tsx      Crowd / Trend / Air Temp / UV / Pool Hours cards. Pool Hours shows a
+                             "Crowd levels tracked Tue–Thu & Sat" note; crowd/trend read
+                             "Not tracked / Off today" on untracked days.
+  weekly-usage.tsx         Quietest / Peak Day / Most Popular cards — FULLY data-driven now:
+                             sparkline from dailyAverages, chips + captions derived from the data.
+  site-header.tsx          Nav + status pill; IntersectionObserver scroll-spy highlights the
+                             active section.
+  site-footer.tsx          "Get Directions" + "Leasing Office" links.
+  posthog-provider.tsx     Client PostHog init (PHProvider)
+  live-pulse.tsx / animated-number.tsx / ui/*   Small primitives
 
 hooks/
-  use-pool-data.ts         Polls /api/pool-data every 30s; revives status.lastUpdated to Date
+  use-pool-data.ts         Polls /api/pool-data every 30s; revives lastUpdated → Date
   use-pool-status.ts       Polls /api/pool-status every 3s; exposes mutate() for admin
+  use-scroll-restoration.ts  Restores window scroll across reloads (height-aware; see §5.7)
 
-lib/                       Pure logic — no JSX, no React
+lib/                       Pure logic — no JSX (mostly server-only)
   config.ts                The constants — see §6
-  types.ts                 Shared shapes (PoolDataSnapshot, PoolStatus, PoolConditions, etc.)
-  time.ts                  currentLocalHour() (Intl-based) + formatHourLabel()
-  effective-status.ts      Combines admin override + schedule into one decision
-  mock-data.ts             crowdLabel/crowdSubtitle/crowdLabelShort + buildConditions/buildSnapshot fallback
-  pool-status.ts           Upstash read/write (server-only)
-  pool-data-server.ts      Composes the resident snapshot from all sources (server-only)
-  occupancy-history.ts     SQL queries — getLatestReading, getTrend, getTodayHourlyActivity, getWeeklyUsage, insertReading (server-only)
-  db.ts                    postgres client; idempotent CREATE TABLE IF NOT EXISTS on first call
-  weather.ts               Open-Meteo client with 4s timeout + hardcoded fallback
-  admin-auth.ts            Constant-time password check + HMAC-signed cookie (key = ADMIN_PASSWORD)
-  sensor-auth.ts           Constant-time bearer-token check (SENSOR_API_KEY)
-  utils.ts                 cn() (clsx + tailwind-merge), formatRelativeTime, pctFull
+  types.ts                 Shared shapes (PoolDataSnapshot, WeeklyUsage.dailyAverages, etc.)
+  time.ts                  currentLocalHour, formatHourLabel, + tracking-day helpers
+                             (currentLocalWeekday, isTrackingDay, nextTrackingDay,
+                             formatTrackingDays, weekday{Long,Short}Name)
+  effective-status.ts      Admin override × schedule → open/closed decision
+  mock-data.ts             crowd label/subtitle helpers + buildConditions + buildSnapshot (demo)
+  pool-status.ts           Upstash read/write for the admin override (server-only)
+  demo-mode.ts             Upstash read/write for the demo-mode flag (server-only)
+  pool-data-server.ts      buildLiveSnapshot — composes the snapshot; applies the staleness guard
+  occupancy-history.ts     All SQL: latest reading, trend, hourly activity, weekly usage,
+                             listReadings/createReading/updateReading/deleteReading (server-only)
+  db.ts                    postgres client + CREATE TABLE IF NOT EXISTS; isDbConfigured()
+  weather.ts               Open-Meteo client (4s timeout + fallback)
+  admin-auth.ts / sensor-auth.ts   HMAC cookie / bearer-token auth (server-only)
+  posthog-server.ts        Server-side PostHog client
+  utils.ts                 cn(), formatRelativeTime, pctFull
+
+scripts/seed-readings.mjs  Dev seed: N days of plausible readings (needs DATABASE_URL)
+docs/                      README media (screenshots + GIFs)
 ```
 
 ---
 
 ## 5. Conventions you must honor
 
-### 5.1 Time is always in pool-local time, never the host's
+### 5.1 Time is always pool-local, never the host's
+Never `new Date().getHours()` / `.setHours()` / `Date.now()` arithmetic against config hours — the server runs UTC on Vercel and it silently breaks. Use `currentLocalHour()` / `formatHourLabel()` from `lib/time.ts`. SQL buckets by hour/day with `AT TIME ZONE ${POOL_TIMEZONE}`. **This has bitten the project more than once.**
 
-- **Never** use `new Date().getHours()`, `.setHours()`, or `Date.now()` arithmetic against config hours. The server runs in UTC on Vercel and that will silently break.
-- Use `currentLocalHour()` from `lib/time.ts` for "what hour is it right now."
-- Use `formatHourLabel(hour: number)` to render `10` → `"10 AM"`.
-- SQL queries that bucket by hour-of-day use `AT TIME ZONE ${POOL_TIMEZONE}` — see `lib/occupancy-history.ts` for the pattern.
+### 5.2 `import "server-only"` on any file touching secrets or the DB
+All of `lib/{pool-status,demo-mode,occupancy-history,db,admin-auth,sensor-auth,weather,pool-data-server,posthog-server}.ts`. Client components importing a *type* from these must use `import type` (erased at runtime).
 
-### 5.2 `import "server-only"` at the top of any file that reads secrets
-
-`lib/pool-status.ts`, `lib/occupancy-history.ts`, `lib/db.ts`, `lib/admin-auth.ts`, `lib/sensor-auth.ts`, `lib/weather.ts`, `lib/pool-data-server.ts` all do this. If a client component needs a *type* from one of these, use `import type { ... }` — types are erased at runtime so it's safe.
-
-### 5.3 Schedule beats default-open; admin force-close beats schedule
-
-The precedence in `deriveEffectivePoolStatus`:
-1. **`adminStatus.isOpen === false`** → force-closed by admin. Reason = admin's text.
-2. **Outside `POOL_OPEN_HOUR`..`POOL_CLOSE_HOUR`** → schedule-closed.
-3. Otherwise → open.
-
-The admin's `isOpen: true` is **not** an override — it just means "no override." There is no way to force the pool open outside its hours, and that's intentional (per user request).
-
-The two closed states have different copy throughout the UI ("Closed by management" vs "Outside pool hours", with the schedule case spelling out "Opens today/tomorrow at 10 AM"). Keep that distinction whenever you add anything closed-state-aware.
+### 5.3 Open/closed precedence (`deriveEffectivePoolStatus`)
+1. `adminStatus.isOpen === false` → force-closed by admin (reason = admin text).
+2. Outside `POOL_OPEN_HOUR..POOL_CLOSE_HOUR` → schedule-closed ("Opens today/tomorrow at 10 AM").
+3. Otherwise open. Admin `isOpen: true` is **not** an override — there's intentionally no way to force-open outside hours.
 
 ### 5.4 Snapshot composition
+`buildLiveSnapshot()` is the only place that assembles `PoolDataSnapshot`. Adding data: (1) type in `lib/types.ts` → (2) query in `lib/occupancy-history.ts` → (3) call in `buildLiveSnapshot`'s `Promise.all` → (4) pass to component in `app/page.tsx` → (5) **also add it to `buildSnapshot()` in `lib/mock-data.ts`** so demo mode + no-DB dev stay coherent. (The Weekly Usage `dailyAverages` sparkline followed exactly this path.)
 
-`lib/pool-data-server.ts::buildLiveSnapshot()` is the only place that assembles `PoolDataSnapshot`. If you add a new piece of data:
-1. Add the type to `lib/types.ts`.
-2. Add the query (or fetch) to `lib/occupancy-history.ts` (or a new file).
-3. Call it in `buildLiveSnapshot()`'s `Promise.all`.
-4. Pass it to the component in `app/page.tsx`.
-5. Update the `buildSnapshot()` mock fallback in `lib/mock-data.ts` so local dev without DB still works.
+### 5.5 Tracking days vs open days
+The pool is **open every day**; occupancy is **tracked** only on `POOL_TRACKING_DAYS` (Tue/Wed/Thu/Sat). Everything is driven by that one array:
+- Hero: untracked day → "Open · live tracking off today" (+ next tracked day); tracking day, no readings yet → "Empty · 0%" opening baseline; tracking day, readings gone stale → "Live · paused".
+- Live Conditions crowd/trend → "Not tracked / Off today"; Pool Hours shows the tracked-days line.
+- Best Times defaults to Weekly avg. on untracked days.
+- Weekly Usage names the tracked days and its gate is tracking-relative (§6).
+- **When the camera goes live 7 days a week, set `POOL_TRACKING_DAYS` to all seven and this messaging disappears automatically.**
+
+### 5.6 Staleness guard (wired up — don't undo it)
+`buildLiveSnapshot` sets `status = null` when the newest reading is older than `FRESH_READING_WINDOW_MS`. This is what stops a Saturday reading from showing as "live" on Monday. `FRESH_READING_WINDOW_MS` used to be defined-but-unused; it is load-bearing now.
+
+### 5.7 Scroll restoration
+`useScrollRestoration()` (in `app/page.tsx`) takes over `history.scrollRestoration` and re-applies the saved position **after** content has loaded, polling the document height. It captures the target on mount (before the scroll listener can clobber it). Two earlier naive versions were buggy (bottom-section reloads landed on the wrong section; then everything landed at top). Don't "simplify" it back.
 
 ---
 
-## 6. The constants in `lib/config.ts`
+## 6. Constants in `lib/config.ts`
 
 ```ts
-POOL_CAPACITY = 60                  // denominator of "X% full"
-POOL_TIMEZONE = "America/New_York"  // used everywhere time-related
-POOL_LAT = 40.898                   // NJ — used for Open-Meteo
-POOL_LON = -74.5719
-POOL_OPEN_HOUR = 10                 // 10 AM
-POOL_CLOSE_HOUR = 20                // 8 PM
-SENSOR_INTERVAL_MS = 5 * 60_000     // 5-min camera cadence
-FRESH_READING_WINDOW_MS = 30 * 60_000
-TREND_WINDOW_MS = 30 * 60_000       // rising/falling/steady window
-WEEKLY_USAGE_MIN_DAYS = 7           // gate for This Week's Usage cards
+POOL_CAPACITY = 80                       // denominator of "X% full" (was 60; user changed it)
+POOL_TIMEZONE = "America/New_York"
+POOL_LAT = 40.898 ; POOL_LON = -74.5719  // NJ — Open-Meteo
+POOL_OPEN_HOUR = 10 ; POOL_CLOSE_HOUR = 20   // 10 AM – 8 PM every day
+POOL_TRACKING_DAYS = [2, 3, 4, 6]        // Tue, Wed, Thu, Sat (0=Sun … 6=Sat)
+SENSOR_INTERVAL_MS = 5 * 60_000
+FRESH_READING_WINDOW_MS = 30 * 60_000    // staleness guard (§5.6)
+TREND_WINDOW_MS = 30 * 60_000
+WEEKLY_USAGE_WINDOW_DAYS = 7             // trailing window for the usage gate
+WEEKLY_USAGE_MIN_DAYS = 3                // ≥3 distinct days in that window → show the cards
 ```
 
-To change pool hours, location, capacity, or polling cadence → edit here, commit, redeploy. That's it.
+The usage gate window/threshold are **separate on purpose**: a 4-day tracking week can never hit "7 distinct days in 7," so requiring that (the old behavior) meant the cards never appeared.
 
 ---
 
-## 7. Required environment variables
+## 7. Environment variables
 
-Stored in `.env.local` for dev (gitignored). `.env.example` documents the schema.
+`.env.local` for dev (gitignored, already filled in for Isaac). Same set in Vercel → Settings → Environment Variables.
 
-In Vercel: **Settings → Environment Variables**. Set the same five there.
-
-| Variable | Used in | What happens if missing |
+| Variable | Used in | Missing behavior |
 |---|---|---|
-| `UPSTASH_REDIS_REST_URL` | `lib/pool-status.ts` | Local: falls back to in-memory + warns. Prod: hard-fails. |
-| `UPSTASH_REDIS_REST_TOKEN` | `lib/pool-status.ts` | Same as above. |
-| `DATABASE_URL` | `lib/db.ts` | Local: queries return empty + warns. Prod: hard-fails. |
-| `ADMIN_PASSWORD` | `lib/admin-auth.ts` | Hard-fails (admin login broken). Rotating it invalidates all sessions. |
-| `SENSOR_API_KEY` | `lib/sensor-auth.ts` | Hard-fails (camera POSTs rejected). Camera isn't wired yet so not a blocker today. |
+| `DATABASE_URL` | `lib/db.ts` | Local: queries return empty + warn. Prod: hard-fail. |
+| `UPSTASH_REDIS_REST_URL` / `_TOKEN` | `lib/pool-status.ts`, `lib/demo-mode.ts` | Local: in-memory fallback + warn. Prod: hard-fail. |
+| `ADMIN_PASSWORD` | `lib/admin-auth.ts` | Admin login broken. Rotating it invalidates all sessions. |
+| `SENSOR_API_KEY` | `lib/sensor-auth.ts` | Camera POSTs rejected. Not a blocker (camera not wired). |
+| `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` / `NEXT_PUBLIC_POSTHOG_HOST` | `components/posthog-provider.tsx`, `lib/posthog-server.ts` | Analytics silently no-op. |
+
+Note `.claude/settings.local.json` is (now) gitignored — per-machine Claude Code permissions, don't commit it.
 
 ---
 
-## 8. Current implementation status
+## 8. Implementation status
 
 ### 8.1 Deployed and working
+- Resident dashboard with the full set of hero states (§5.5), schedule-driven open/close, admin force-close.
+- **Admin data editor** at `/admin/data` — the current way readings get in: a spreadsheet-style table (add / edit / delete / search, fixed-height scroll window) over `occupancy_readings`. Requires `DATABASE_URL`.
+- **Demo mode** — a toggle in `/admin/data` that makes the resident view serve a generated snapshot (nothing written to the DB); flip it off to return to live data. Flag lives in Upstash so every visitor's poll sees the same thing. This is also the way to preview the populated UI without a database (see §11).
+- Best Times chart (ghost bars, mobile scroll affordances), Live Conditions, and **fully data-driven Weekly Usage** (stats, sparkline, chips, captions).
+- Open-Meteo weather; scroll restoration; nav scroll-spy; PostHog analytics.
+- `/api/sensor-reading` ready for the camera (auth + validation done).
 
-- Resident dashboard with three render paths (live / closed / empty)
-- Schedule-driven open/close (10 AM – 8 PM ET)
-- Admin login at `/admin/login` + force-close UI at `/admin/pool`
-- Open-Meteo weather (air temp + UV, 10-min cache + fallback)
-- Pool Hours card with `hoursLeftToday` computed in pool timezone
-- Dynamic hero subtitle that matches the crowd level (via `crowdSubtitle()`)
-- Custom bar chart "Best Times to Visit" with three tabs (Today / Yesterday / Weekly avg.), a
-  25/50/75/100% Y-axis scale, and per-bar hover tooltips (hour + % full + crowd label)
-- 4-card "This Week's Usage" with "Not enough data yet" placeholders when < 7 days of data
-- Header pill, hero subtitle, and Pool Hours card all distinguish admin-closed vs schedule-closed
-- `/api/sensor-reading` endpoint ready to receive camera POSTs (auth + validation done; nothing posting to it yet)
-
-**UI polish pass (PRs #8–#11, see §9).** A resident-facing design review drove a round of cleanup:
-closed/standby heroes are single-column with no broken-looking "—%"; schedule-closed copy reads
-"Opens today/tomorrow at 10 AM"; system/admin language ("Deck sensor · A2", "Status set by: Pool
-schedule") was stripped; the live indicator is consistently green; LiveHero lost its decorative
-pills; Live Conditions gained a Crowd + Air Temp primary tier; the chart got a Y-axis scale + %
-tooltips + warm background; Insights copy was de-jargoned. If you touch these areas, read the
-relevant PR before "fixing" something back to its old form.
-
-### 8.2 In flight at the moment of this handoff
-
-Everything is committed. **PR #11 (`best-times-chart-polish`) is open and awaiting merge** — the
-chart Y-axis/tooltips/warm-bg + Insights copy changes. PRs #8, #9, #10 are already merged to master.
-
-The only un-shipped design-review item is the **footer** (Minor): the lone "Leasing Office" link is
-visually orphaned and would benefit from surrounding context (a short label / hours / "Questions?
-Contact us"). Lives in `components/site-footer.tsx`. Discussed with the user; not yet started.
-
-### 8.3 Not yet implemented
-
-- **Live occupancy data** — the dashboard hero is in "Standing by — Awaiting sensor data" empty state. Will graduate to live once the camera starts POSTing readings.
-- **Camera CV pipeline** — see §10 for the current real-world blocker.
+### 8.2 Not yet implemented / pending
+- **Live camera feed** (§10). Until then, **Isaac enters readings by hand in `/admin/data`.** This is the single most important current-state fact.
+- Known cosmetic/tech debt: `lib/weather.ts` fallback comment still says "Austin" (location is NJ); no login rate-limiting; no CI (the build broke on master once this could have caught — a `tsc + lint + build` GitHub Action is the highest-value small add).
 
 ---
 
-## 9. PR history (for context)
+## 9. PR history since the last handoff (context)
 
-Merged into master so far:
+The previous handoff stopped at PRs #8–#11 (a resident-facing UI polish pass). Since then, merged to `master`:
 
-1. Initial scaffolding + UI components
-2. **#3** — Admin pool controls + Upstash + auth
-3. **#4** — Live weather (Open-Meteo)
-4. **#5** — Schedule-driven hours + admin as override (also fixed a timezone bug where Pool Hours rendered as 6 AM – 4 PM)
-5. **#6** — Dynamic hero subtitle keyed to crowd level
-6. **#7** — Wire Today / Yesterday / Weekly avg chart tabs
-7. **#8** — Closed-state cleanup (de-dupe copy, "Opens today/tomorrow at 10 AM", drop "—%", dim nav when closed)
-8. **#9** — Remove system-language leaks ("Deck sensor · A2", "Status set by: Pool schedule"; pill → "Open")
-9. **#10** — Hero + Live Conditions hierarchy (green pulse everywhere, thicker capacity bar, tighter hero spacing, Crowd+Temp primary tier, removed LiveHero pills)
-10. **#11** — Best Times chart + Insights polish (Y-axis scale, % tooltips, warm bg, "Busier than usual" copy)
-
-These four polish PRs (#8–#11) came out of a resident-facing design review. The footer item is the
-only review point still untouched (see §8.2).
+- **#12** — Batch UI polish: nav scroll-spy active state, 2×2 mobile conditions grid, UV "No sun protection needed", trend closed-state copy, spacing/footer, chart grid lines/tab states/date caption, Community Insights copy. (Three items — a prominent closed-reason line, a closed-hero illustration, and a Pool Hours day-timeline — were built then **reverted** at Isaac's request; don't re-add them.)
+- **#14** — Fixed a build-breaking conditional `useState` in the chart (Rules-of-Hooks / SSR `window`); made scroll-edge fades mobile-only. Also fixed an off-by-one so the chart no longer shows a post-closing "8 PM–9 PM" bar.
+- **#15 / #16** — Mobile chart scrollability: scroll-progress indicator + a one-time "sweep to end" nudge that fires when the chart scrolls into view.
+- **#18 → #19** — Scroll restoration. #18 introduced a regression (always landed at top); #19 is the correct height-based version (§5.7).
+- **#20 / #25** — README (content, then media/GIFs, then the "camera not connected" note).
+- **#21** — Admin data editor + `/api/admin-readings` CRUD.
+- **#22** — Demo mode + data-editor search + scroll window.
+- **#24** — Distinct demo curves per chart tab.
+- **#26 / #28 / #29** — Tracking-days system: `POOL_TRACKING_DAYS`, the untracked/just-opened/paused hero states, the staleness guard wired up, the Weekly Usage gate fix, and the **real per-weekday sparkline** + fully dynamic chips/captions.
+- **#27** — PostHog analytics (added by Isaac / an automated integration, not hand-built here).
 
 ---
 
-## 10. The camera situation (current blocker for live data)
+## 10. The camera situation (blocker for live data)
 
-The pool has an **Eagle Eye Networks** turret/mini-dome camera. EEN is a cloud-managed VMS — the camera already streams to their cloud, which is great news: we don't need any on-prem hardware to get frames out of it.
+The pool has an **Eagle Eye Networks** camera (cloud-managed VMS — already streams to their cloud, so no on-prem hardware needed to get frames).
 
-### What's been asked of the property manager
+**Pending asks of the property manager:** a view-only EEN account for just the pool camera + credentials; the camera's **ESN**; and confirmation that **API access** (and ideally built-in **people-counting analytics**) is enabled on their plan.
 
-The user has spoken with the property manager. The pending asks are:
+**What we'll build once we have credentials:** a Vercel cron (~5 min) that calls EEN's API for the camera and either (a) pulls a snapshot → runs CV in the cloud (Modal/Replicate, ~$0.30/mo), or (b) pulls EEN's people count directly if the plan has analytics; then POSTs `{ "occupancy": <int> }` to `/api/sensor-reading` with `SENSOR_API_KEY`.
 
-1. **Create a user account** in the EEN dashboard with view-only access to *just* the pool camera. Send the credentials.
-2. **The camera's ESN** (Eagle Eye's device ID — shown in camera settings).
-3. **Confirm API access is enabled** on their EEN plan (this is the unknown — some tiers don't include it). If not, ask what it costs to enable. Also worth asking whether their plan includes **analytics features like people counting** — if yes, we don't need to build CV at all and can just pull the count.
+**Privacy posture (settled):** no frames/crops ever leave EEN's cloud or land in our infra — only the integer count flows in. This is load-bearing for the resident relationship.
 
-### What we'll build once we have credentials
-
-A Vercel cron job (every 5 minutes):
-- Calls EEN's REST API with `EAGLE_EYE_CLIENT_ID` + `EAGLE_EYE_SECRET` env vars.
-- For `EAGLE_EYE_CAMERA_ESN`, either:
-  - Pulls a snapshot and runs CV in the cloud (Modal/Replicate for ~$0.30/mo at this cadence), or
-  - Pulls EEN's built-in people count directly if their plan has analytics.
-- POSTs the integer to `/api/sensor-reading` with our `SENSOR_API_KEY`.
-
-The user has been told to test EEN credentials themselves with a quick `curl` before bothering the property manager about API access — see the conversation history for the exact one-liner.
-
-### Privacy posture (already discussed with user, baked into plan)
-
-No frames, no crops ever leave Eagle Eye's cloud or land in our infrastructure. The only thing flowing in is `{ "occupancy": <int> }`. Maintain this stance in any future implementation — it's load-bearing for the resident relationship.
-
-### Bigger architectural pivot to remember
-
-The user pivoted the CV mental model from **counting people** to **counting taken seats** (because towels-on-empty-loungers are functionally "taken"). They also pointed out that **chairs at this pool move**, so we can't pre-define seat polygons — the right architecture is:
-
-1. Detect each chair in the frame dynamically (open-vocab detector or a fine-tuned chair detector).
-2. For each detected chair, run a small binary classifier (available vs taken).
-3. Sum availables → that's the integer we POST to `/api/sensor-reading`.
-
-The classifier should be **trained on chair crops with binary labels (available vs taken)**, not on specific objects like "towel" or "bag." The model generalizes "what taken looks like" from examples.
-
-Do *not* re-litigate this with the user unless they bring it up — they've thought it through and it's a settled direction.
+**CV architecture (settled — don't re-litigate unless Isaac raises it):** count **taken seats**, not people (towels on empty loungers are functionally "taken"). Chairs move, so don't pre-define seat polygons: (1) detect each chair dynamically, (2) run a small binary available/taken classifier per chair crop, (3) sum takens → the integer we POST. Classifier is trained on chair crops with binary labels, not on "towel"/"bag" objects.
 
 ---
 
 ## 11. Operational details
 
-### Local dev
+**Local dev:** `npm install`, then `npm run dev`. Runs without any env vars — you'll see the "no data / just opened / untracked" states. To see the **populated** UI without a database, log into `/admin/login` and flip on **demo mode** in `/admin/data` (needs `ADMIN_PASSWORD`; Upstash falls back to in-memory in dev). With `DATABASE_URL` set, `node scripts/seed-readings.mjs` seeds a week of readings.
 
-```powershell
-npm install
-copy .env.example .env.local   # then fill in the 5 values
-npm run dev                    # next dev on port 3000
-```
+**Build:** `npx next build` (or `npx tsc --noEmit` for a fast type-only check) must pass before committing — TS errors block Vercel deploys.
 
-`.env.local` already exists for the user with their credentials filled in. **Don't commit it** — it's gitignored.
-
-If `DATABASE_URL` is empty, you'll see "Standing by" empty states. That's correct — no DB, no readings, no data. The page should still look polished in that state.
-
-If `UPSTASH_REDIS_REST_URL` is empty, admin actions work but don't persist across server restarts.
-
-### Build
-
-```powershell
-npx next build
-```
-
-Build must pass before any commit. TypeScript errors block deploys.
-
-### Deploy
-
-Pushes to `master` auto-deploy via Vercel. Each PR gets a preview URL.
-
-### Verifying changes in the browser (during a session)
-
-Two `mcp__Claude_Preview__*` tools are available: `preview_start`, `preview_screenshot`, `preview_eval`, etc. `.claude/launch.json` defines the `pondview-dev` config that runs `npm run dev` on port 3717.
-
-For browser-observable changes, the workflow is:
-1. `preview_start({ name: "pondview-dev" })`
-2. Wait ~4s for compile + first poll
-3. `preview_screenshot` to verify
-4. `preview_eval` to mutate or inspect state when needed
-5. `preview_stop` when done
-
-To verify chart/data states without real DB rows, monkey-patch `window.fetch` via `preview_eval` to return canned `/api/pool-data` payloads. The previous session used this pattern; it works well.
+**Verifying in the browser during a session:** the preview tooling in this environment has been the **`mcp__Claude_Browser__*`** tools (start a `pondview-dev` server via `.claude/launch.json` on port 3717, then `navigate` + `get_page_text` / `read_console_messages`). Screenshots have been flaky/timeout-prone all along — prefer `get_page_text` and DOM/console checks. Because there's usually no local DB, the resident view shows the tracking-day states; you can verify populated states by temporarily editing `POOL_TRACKING_DAYS`, or by checking `buildSnapshot()` output directly with Node (compile the module chain to CJS in a scratch dir — this pattern was used to verify chart curves and the weekly sparkline without a DB).
 
 ---
 
@@ -327,46 +255,41 @@ To verify chart/data states without real DB rows, monkey-patch `window.fetch` vi
 
 | Symptom | First place to look |
 |---|---|
-| "Pool Hours shows wrong times" | Timezone bug. Search for `.getHours(` or `.setHours(` — there should be none. Confirm `POOL_TIMEZONE` is `"America/New_York"`. |
-| "Admin save doesn't propagate to residents" | Cache. The GET on `/api/pool-status` is edge-cached for 3s; full propagation can take ~3–6s. Network tab in DevTools should show polls every 3s. |
-| "Hero stuck on 'Standing by'" | No readings in `occupancy_readings`. Hit Neon's web console: `SELECT count(*) FROM occupancy_readings`. If 0, the camera isn't (yet) POSTing. |
-| "Build fails on Vercel" | Run `npx next build` locally — same errors, faster feedback. |
-| "Weather looks wrong" | 10-min cache. Hard refresh + wait. If still wrong, check `POOL_LAT`/`POOL_LON`. Hardcoded fallback is `{ airTempF: 84, uvIndex: 7 }` — seeing exactly that = API call is failing. |
-| "Everything is skeletons forever" | JS bundle isn't loading. Console will show why. Common cause: accidentally importing a server-only file from a client component without `import type`. |
+| Hero says "live tracking off today" | Correct on Mon/Fri/Sun — that's an untracked day (`POOL_TRACKING_DAYS`). Not a bug. |
+| Hero stuck on "Empty · 0% / just opened" during the day | Tracking day with no readings logged yet. Add readings in `/admin/data`, or (dev) it's just the no-DB state. |
+| Pool Hours shows wrong times | Timezone bug — search for `.getHours(`/`.setHours(` (should be none); confirm `POOL_TIMEZONE`. |
+| Weekly Usage never appears | Needs ≥3 distinct tracked days of readings in the last 7 (§6). With manual entry, log a few days. |
+| Peak Day label ≠ tallest sparkline bar | Shouldn't happen — both derive from one per-weekday query in `getWeeklyUsage`. If it does, that invariant broke. |
+| Admin save doesn't propagate | `/api/pool-status` GET is edge-cached ~3s; propagation ~3–6s. |
+| Everything is skeletons forever | Client bundle failing — check console; common cause is importing a `server-only` file into a client component without `import type`. |
+| Build fails on Vercel | Run `npx next build` / `npx tsc --noEmit` locally for the same error faster. |
 
 ---
 
-## 13. User-preference reminders
+## 13. Working-with-Isaac reminders
 
-- Short, conversational answers. The user isn't a developer but follows along well.
-- They appreciate when you explain *why*, not just *what*.
-- They will sometimes revert your work if you over-implement or guess wrong about scope. When in doubt, ask first.
-- They prefer one focused PR per logical change, with a clear title and a "Test plan" section in the body.
-- For PRs: the `gh` CLI is installed locally (v2.94.0+). PR body should go through a temp file with `--body-file` because PowerShell mangles inline `--body` with em-dashes / quotes.
+- Short, conversational, plain-language. He follows along but isn't a career dev — **explain the _why_**, and it's welcome to quiz him / offer small exercises on his own code (he's prepping to defend this project in interviews).
+- He will **revert** work if you over-implement or guess scope wrong. When a change spans many files or adds an abstraction, check first.
+- **One focused PR per logical change.** Clear title; a short "why + what + verification" body. He cares that PR descriptions stay accurate — update them (`gh pr edit`) when scope shifts (pushing code never updates the body).
+- `gh` CLI is available. Every session this project has run: branch off `master` → build → `tsc`/verify → commit → push → open PR with `gh pr create`.
+- End commit messages with the `Co-Authored-By: Claude …` trailer.
 
 ---
 
 ## 14. Glossary
 
-| Term | Meaning in this project |
+| Term | Meaning |
 |---|---|
-| **Admin** | The property manager / leasing office. Singular, no multi-user. Authenticated via `ADMIN_PASSWORD`. |
-| **Effective status** | The result of `deriveEffectivePoolStatus(adminStatus)` — combines override + schedule. This is what residents actually see. |
-| **Force-close override** | What the admin toggle does. Internal state: `isOpen: false` in Upstash. UI label: "Force the pool closed." |
-| **Schedule-closed** | The pool is closed because the current pool-local time is outside `POOL_OPEN_HOUR`..`POOL_CLOSE_HOUR`. Resident sees "Outside pool hours" / "Closed for the day". |
-| **Standing by** | The hero's empty state when there are zero sensor readings yet. Different from closed — implies "we're ready, just waiting for data." |
-| **HourlyActivitySet** | The three-period chart payload: `{ today, yesterday, average }`. Each can be null independently. |
-| **Effective source** | `"admin" | "schedule" | null` — which subsystem decided the pool is closed, so the UI can use different copy. |
-| **ESN** | Eagle Eye Networks device ID for a specific camera. Alphanumeric, ~8 chars. |
-| **Sensor** | The camera + CV pipeline that will eventually POST occupancy. Not built yet — see §10. |
+| **Admin** | The property manager / leasing office. Single user, `ADMIN_PASSWORD`. |
+| **Effective status** | Output of `deriveEffectivePoolStatus` — override × schedule; what residents see. |
+| **Tracking day** | A day occupancy is measured (`POOL_TRACKING_DAYS` = Tue/Wed/Thu/Sat). The pool is open on other days too, just untracked. |
+| **Demo mode** | Upstash flag; when on, `/api/pool-data` serves the generated `buildSnapshot()` — no DB writes. Toggle in `/admin/data`. |
+| **Data editor** | `/admin/data` — the spreadsheet CRUD over `occupancy_readings`; currently the primary way readings get in. |
+| **Staleness guard** | `FRESH_READING_WINDOW_MS` check in `buildLiveSnapshot` that nulls out old readings so they don't show as live. |
+| **Just-opened / Paused / Untracked hero** | The three "open but no fresh reading" hero states (§5.5). |
+| **HourlyActivitySet** | `{ today, yesterday, average }` chart payload; each can be null independently. |
+| **ESN** | Eagle Eye Networks device ID for a camera. |
 
 ---
 
-## 15. When in doubt
-
-- Read `app/page.tsx` first — it's the entry point and shows you how every piece slots together.
-- For data flow, trace from a screen value backwards through `app/page.tsx → hooks → api routes → lib/*`.
-- For visual decisions, check `tailwind.config.ts` for the brand palette (`pond.*` colors) and `globals.css` for keyframes.
-- If a change feels like it's spanning many files, you might be designing a new abstraction — pause and check with the user before going wide.
-
-This document is the contract between this session and the next one. If you change something fundamental — add a new env var, swap a data source, restructure the snapshot — update the matching section here.
+This document is the contract between this session and the next. If you change something fundamental — a new env var, a new data source, a restructured snapshot, a new config knob — update the matching section here before you finish.
