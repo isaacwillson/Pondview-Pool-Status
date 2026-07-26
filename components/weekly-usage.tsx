@@ -41,6 +41,27 @@ export function WeeklyUsageSection({
     fraction: avg / maxDaily,
   }));
 
+  // Everything below is derived from the data — no fixed strings that could
+  // drift from what's actually being shown.
+  // Thresholds reflect that these are weekly *averages* (smoothed, so lower
+  // than peak instantaneous occupancy).
+  const quietChip =
+    quietPct < 15 ? "Wide open" : quietPct < 35 ? "Room to swim" : "Quieter";
+  const popularChip =
+    popularPct >= 60 ? "Packed" : popularPct >= 35 ? "Plan ahead" : "Filling up";
+  const peakVsAvg =
+    data.averageOccupancy > 0
+      ? Math.round(
+          (data.peakDay.averageOccupancy / data.averageOccupancy - 1) * 100,
+        )
+      : 0;
+  const peakChip = peakVsAvg > 0 ? `+${peakVsAvg}% vs avg` : "Busiest day";
+
+  const quietNote = `Calmest in the ${timeOfDay(data.quietestTime.label)}.`;
+  const popularNote = `Busiest in the ${timeOfDay(
+    data.mostPopularTime.label,
+  )} — ${data.peakDay.day} is the busiest day.`;
+
   return (
     <section aria-labelledby="weekly-heading">
       <div className="max-w-2xl">
@@ -65,7 +86,7 @@ export function WeeklyUsageSection({
           eyebrow="Quietest Time"
           value={data.quietestTime.label}
           delta={`avg ${quietPct}% full`}
-          chip="Best for laps"
+          chip={quietChip}
           chipTone="success"
         >
           <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-border/60 bg-secondary/50 px-3.5 py-3">
@@ -74,7 +95,7 @@ export function WeeklyUsageSection({
               aria-hidden
             />
             <p className="text-sm leading-snug text-muted-foreground">
-              Reliably calm weekday mornings.
+              {quietNote}
             </p>
           </div>
         </AnalyticCard>
@@ -84,7 +105,7 @@ export function WeeklyUsageSection({
           eyebrow="Peak Day"
           value={data.peakDay.day}
           delta={`avg ${peakPct}% full`}
-          chip="Busier than usual"
+          chip={peakChip}
           chipTone="warning"
         >
           <div className="mt-4 flex h-[68px] items-end gap-1.5">
@@ -136,7 +157,7 @@ export function WeeklyUsageSection({
           eyebrow="Most Popular Time"
           value={data.mostPopularTime.label}
           delta={`avg ${popularPct}% full`}
-          chip="Plan ahead"
+          chip={popularChip}
           chipTone="warning"
         >
           <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-border/60 bg-secondary/50 px-3.5 py-3">
@@ -145,13 +166,24 @@ export function WeeklyUsageSection({
               aria-hidden
             />
             <p className="text-sm leading-snug text-muted-foreground">
-              Tends to peak on Saturday evenings.
+              {popularNote}
             </p>
           </div>
         </AnalyticCard>
       </div>
     </section>
   );
+}
+
+/** "morning" / "afternoon" / "evening" from a slot label like "6:30 PM". */
+function timeOfDay(label: string): string {
+  const m = /(\d+):(\d+)\s*(AM|PM)/i.exec(label);
+  if (!m) return "day";
+  let hour = Number(m[1]) % 12;
+  if (/pm/i.test(m[3])) hour += 12;
+  if (hour < 12) return "morning";
+  if (hour < 17) return "afternoon";
+  return "evening";
 }
 
 interface AnalyticCardProps {
