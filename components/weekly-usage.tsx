@@ -1,9 +1,11 @@
 "use client";
 
-import { Calendar, Crown, Moon, Users } from "lucide-react";
+import { Calendar, Crown, Moon } from "lucide-react";
 import { Card } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
 import { cn, pctFull } from "@/lib/utils";
+import { formatTrackingDays, weekdayShortName } from "@/lib/time";
+import { POOL_TRACKING_DAYS } from "@/lib/config";
 import type { WeeklyUsage } from "@/lib/types";
 
 interface WeeklyUsageProps {
@@ -11,16 +13,6 @@ interface WeeklyUsageProps {
   capacity: number | null;
   isLoading: boolean;
 }
-
-const WEEK_BARS = [
-  { day: "Mon", value: 0.34 },
-  { day: "Tue", value: 0.28 },
-  { day: "Wed", value: 0.42 },
-  { day: "Thu", value: 0.55 },
-  { day: "Fri", value: 0.72 },
-  { day: "Sat", value: 0.92 },
-  { day: "Sun", value: 0.78 },
-];
 
 export function WeeklyUsageSection({
   data,
@@ -33,9 +25,42 @@ export function WeeklyUsageSection({
   }
 
   const peakPct = pctFull(data.peakDay.averageOccupancy, capacity);
-  const avgPct = pctFull(data.averageOccupancy, capacity);
   const quietPct = pctFull(data.quietestTime.averageOccupancy, capacity);
   const popularPct = pctFull(data.mostPopularTime.averageOccupancy, capacity);
+
+  // Build the Peak Day sparkline from real per-weekday averages. Heights are
+  // relative to the busiest day so the shape reads clearly; untracked days (or
+  // any day with no readings) render as faint stubs.
+  const maxDaily = Math.max(...data.dailyAverages, 1);
+  const peakIndex = data.dailyAverages.indexOf(Math.max(...data.dailyAverages));
+  const dayBars = data.dailyAverages.map((avg, day) => ({
+    label: weekdayShortName(day),
+    avg,
+    tracked: POOL_TRACKING_DAYS.includes(day),
+    isPeak: day === peakIndex && avg > 0,
+    fraction: avg / maxDaily,
+  }));
+
+  // Everything below is derived from the data — no fixed strings that could
+  // drift from what's actually being shown.
+  // Thresholds reflect that these are weekly *averages* (smoothed, so lower
+  // than peak instantaneous occupancy).
+  const quietChip =
+    quietPct < 15 ? "Wide open" : quietPct < 35 ? "Room to swim" : "Quieter";
+  const popularChip =
+    popularPct >= 60 ? "Packed" : popularPct >= 35 ? "Plan ahead" : "Filling up";
+  const peakVsAvg =
+    data.averageOccupancy > 0
+      ? Math.round(
+          (data.peakDay.averageOccupancy / data.averageOccupancy - 1) * 100,
+        )
+      : 0;
+  const peakChip = peakVsAvg > 0 ? `+${peakVsAvg}% vs avg` : "Busiest day";
+
+  const quietNote = `Calmest in the ${timeOfDay(data.quietestTime.label)}.`;
+  const popularNote = `Busiest in the ${timeOfDay(
+    data.mostPopularTime.label,
+  )} — ${data.peakDay.day} is the busiest day.`;
 
   return (
     <section aria-labelledby="weekly-heading">
@@ -49,82 +74,81 @@ export function WeeklyUsageSection({
         >
           This Week’s Usage
         </h2>
-        <p className="mt-3 max-w-xl text-base text-muted-foreground">
-          Aggregated trends from the last seven days — helping residents find
-          their preferred rhythm.
+        <p className="mt-3 max-w-2xl text-balance text-base text-muted-foreground">
+          Aggregated from the pool&apos;s tracked days ({formatTrackingDays()})
+          over the past week, to help you find your preferred rhythm.
         </p>
       </div>
 
-      <div className="mt-8 grid grid-cols-1 gap-4 stagger md:grid-cols-2 xl:grid-cols-4">
-        <AnalyticCard
-          icon={<Crown className="h-4 w-4" />}
-          eyebrow="Peak Day"
-          value={data.peakDay.day}
-          delta={`avg ${peakPct}% full`}
-          chip="+18% vs. last week"
-          chipTone="warning"
-        >
-          {/* Weekly mini chart inside this card */}
-          <div className="mt-4 flex items-end gap-1.5">
-            {WEEK_BARS.map((b, i) => (
-              <div key={b.day} className="flex flex-1 flex-col items-center gap-1.5">
-                <div
-                  className={cn(
-                    "w-full rounded-sm bg-gradient-to-t",
-                    b.day === "Sat"
-                      ? "from-amber-400 to-amber-300"
-                      : "from-pond-200 to-pond-100",
-                  )}
-                  style={{
-                    height: `${b.value * 56}px`,
-                    animation: `bar-grow 0.8s cubic-bezier(0.16, 1, 0.3, 1) ${
-                      i * 50
-                    }ms both`,
-                    transformOrigin: "bottom",
-                  }}
-                />
-                <span
-                  className={cn(
-                    "text-[10px] uppercase tracking-wider",
-                    b.day === "Sat"
-                      ? "font-semibold text-amber-700"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {b.day}
-                </span>
-              </div>
-            ))}
-          </div>
-        </AnalyticCard>
-
-        <AnalyticCard
-          icon={<Users className="h-4 w-4" />}
-          eyebrow="Average Occupancy"
-          value={`${avgPct}%`}
-          unit="full"
-          delta="across all hours · 7-day mean"
-          chip="Steady"
-          chipTone="info"
-        >
-          <div className="mt-4">
-            <Sparkline points={[18, 21, 19, 24, 22, 27, 25, 23, 26, 23]} />
-          </div>
-        </AnalyticCard>
-
+      <div className="mt-8 grid grid-cols-1 gap-4 stagger md:grid-cols-3">
         <AnalyticCard
           icon={<Moon className="h-4 w-4" />}
           eyebrow="Quietest Time"
           value={data.quietestTime.label}
           delta={`avg ${quietPct}% full`}
-          chip="Best for laps"
+          chip={quietChip}
           chipTone="success"
         >
-          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-border/60 bg-secondary/50 px-3 py-2.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
-            <p className="text-xs text-muted-foreground">
-              Reliably calm weekday mornings.
+          <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-border/60 bg-secondary/50 px-3.5 py-3">
+            <span
+              className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500"
+              aria-hidden
+            />
+            <p className="text-sm leading-snug text-muted-foreground">
+              {quietNote}
             </p>
+          </div>
+        </AnalyticCard>
+
+        <AnalyticCard
+          icon={<Crown className="h-4 w-4" />}
+          eyebrow="Peak Day"
+          value={data.peakDay.day}
+          delta={`avg ${peakPct}% full`}
+          chip={peakChip}
+          chipTone="warning"
+        >
+          <div className="mt-4 flex h-[68px] items-end gap-1.5">
+            {dayBars.map((b, i) => (
+              <div key={b.label} className="flex flex-1 flex-col items-center gap-1.5">
+                {b.avg > 0 ? (
+                  <div
+                    className={cn(
+                      "w-full rounded-sm bg-gradient-to-t",
+                      b.isPeak
+                        ? "from-amber-400 to-amber-300"
+                        : "from-pond-200 to-pond-100",
+                    )}
+                    style={{
+                      // Floor so a busy-but-not-peak day is still visible.
+                      height: `${Math.max(4, b.fraction * 56)}px`,
+                      animation: `bar-grow 0.8s cubic-bezier(0.16, 1, 0.3, 1) ${i * 50}ms both`,
+                      transformOrigin: "bottom",
+                    }}
+                    title={`${b.label}: avg ${b.avg} people`}
+                  />
+                ) : (
+                  // No readings this day (untracked, or simply none) → faint stub.
+                  <div
+                    className="w-full rounded-sm border border-dashed border-border/70"
+                    style={{ height: "6px" }}
+                    aria-hidden
+                  />
+                )}
+                <span
+                  className={cn(
+                    "text-[10px] uppercase tracking-wider",
+                    b.isPeak
+                      ? "font-semibold text-amber-700"
+                      : b.avg > 0
+                        ? "text-muted-foreground"
+                        : "text-muted-foreground/40",
+                  )}
+                >
+                  {b.label}
+                </span>
+              </div>
+            ))}
           </div>
         </AnalyticCard>
 
@@ -133,19 +157,33 @@ export function WeeklyUsageSection({
           eyebrow="Most Popular Time"
           value={data.mostPopularTime.label}
           delta={`avg ${popularPct}% full`}
-          chip="Plan ahead"
+          chip={popularChip}
           chipTone="warning"
         >
-          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-border/60 bg-secondary/50 px-3 py-2.5">
-            <span className="h-2 w-2 rounded-full bg-amber-500" aria-hidden />
-            <p className="text-xs text-muted-foreground">
-              Tends to peak Friday–Sunday evenings.
+          <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-border/60 bg-secondary/50 px-3.5 py-3">
+            <span
+              className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-500"
+              aria-hidden
+            />
+            <p className="text-sm leading-snug text-muted-foreground">
+              {popularNote}
             </p>
           </div>
         </AnalyticCard>
       </div>
     </section>
   );
+}
+
+/** "morning" / "afternoon" / "evening" from a slot label like "6:30 PM". */
+function timeOfDay(label: string): string {
+  const m = /(\d+):(\d+)\s*(AM|PM)/i.exec(label);
+  if (!m) return "day";
+  let hour = Number(m[1]) % 12;
+  if (/pm/i.test(m[3])) hour += 12;
+  if (hour < 12) return "morning";
+  if (hour < 17) return "afternoon";
+  return "evening";
 }
 
 interface AnalyticCardProps {
@@ -211,52 +249,6 @@ function AnalyticCard({
   );
 }
 
-function Sparkline({ points }: { points: number[] }) {
-  const max = Math.max(...points);
-  const min = Math.min(...points);
-  const range = max - min || 1;
-  const w = 100;
-  const h = 36;
-  const step = w / (points.length - 1);
-  const coords = points.map((p, i) => {
-    const x = i * step;
-    const y = h - ((p - min) / range) * (h - 6) - 3;
-    return [x, y] as const;
-  });
-
-  const path = coords
-    .map(([x, y], i) => (i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`))
-    .join(" ");
-
-  const fillPath = `${path} L ${w} ${h} L 0 ${h} Z`;
-
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-9 w-full" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="sparkfill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgb(53 118 150)" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="rgb(53 118 150)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={fillPath} fill="url(#sparkfill)" />
-      <path
-        d={path}
-        fill="none"
-        stroke="rgb(48 97 126)"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
-      <circle
-        cx={coords[coords.length - 1][0]}
-        cy={coords[coords.length - 1][1]}
-        r="2"
-        fill="rgb(48 97 126)"
-      />
-    </svg>
-  );
-}
 
 function WeeklyUsageEmpty() {
   return (
@@ -271,14 +263,14 @@ function WeeklyUsageEmpty() {
         >
           This Week’s Usage
         </h2>
-        <p className="mt-3 max-w-xl text-base text-muted-foreground">
-          Aggregated trends from the last seven days — helping residents find
-          their preferred rhythm.
+        <p className="mt-3 max-w-2xl text-balance text-base text-muted-foreground">
+          Aggregated from the pool&apos;s tracked days ({formatTrackingDays()})
+          over the past week, to help you find your preferred rhythm.
         </p>
       </div>
 
-      <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
           <Card
             key={i}
             className="flex flex-col items-center justify-center border-dashed bg-secondary/30 p-8 text-center"
@@ -303,8 +295,8 @@ function WeeklyUsageSkeleton() {
         <Skeleton className="h-4 w-32" />
         <Skeleton className="h-9 w-72" />
       </div>
-      <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
           <Card key={i} className="p-6">
             <Skeleton className="h-8 w-8 rounded-lg" />
             <Skeleton className="mt-5 h-3 w-24" />

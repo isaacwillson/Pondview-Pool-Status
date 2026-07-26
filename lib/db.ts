@@ -17,6 +17,11 @@ let sql: Sql | null = null;
 let schemaReady: Promise<void> | null = null;
 let warnedAboutMissingDb = false;
 
+/** Whether a database connection string is configured. */
+export function isDbConfigured(): boolean {
+  return Boolean(process.env.DATABASE_URL);
+}
+
 /** Returns the postgres client, or `null` if no `DATABASE_URL` in dev. */
 export function getSql(): Sql | null {
   if (sql) return sql;
