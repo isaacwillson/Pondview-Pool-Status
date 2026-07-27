@@ -6,6 +6,7 @@
  *   GET                      → { rows, total, dbConnected, defaultCapacity }
  *   POST   { occupancy, capacity?, recordedAt? }        → { row }
  *   PATCH  { id, occupancy, capacity, recordedAt }      → { row }
+ *   PUT    { capacity }              → { updated, capacity }  (all readings)
  *   DELETE { id }                                       → { ok }
  */
 import { NextResponse } from "next/server";
@@ -17,6 +18,7 @@ import {
   createReading,
   deleteReading,
   listReadings,
+  setAllReadingsCapacity,
   updateReading,
   type Reading,
 } from "@/lib/occupancy-history";
@@ -170,6 +172,35 @@ export async function PATCH(request: Request) {
   await posthog.flush();
 
   return NextResponse.json({ row: serialize(row) });
+}
+
+export async function PUT(request: Request) {
+  if (!(await isAdminAuthenticated())) return unauthorized();
+  if (!isDbConfigured()) return noDatabase();
+
+  const body = await readJson(request);
+  if (!body) return NextResponse.json({ error: "Invalid body." }, { status: 400 });
+
+  const { capacity } = body;
+  if (typeof capacity !== "number" || !Number.isFinite(capacity) || capacity <= 0) {
+    return NextResponse.json(
+      { error: "`capacity` must be a positive number." },
+      { status: 400 },
+    );
+  }
+  const cap = Math.round(capacity);
+
+  const updated = await setAllReadingsCapacity(cap);
+
+  const posthog = getPostHogClient();
+  posthog.capture({
+    distinctId: "admin",
+    event: "admin_capacity_bulk_set",
+    properties: { capacity: cap, updated },
+  });
+  await posthog.flush();
+
+  return NextResponse.json({ updated, capacity: cap });
 }
 
 export async function DELETE(request: Request) {

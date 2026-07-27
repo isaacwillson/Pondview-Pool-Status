@@ -70,7 +70,6 @@ export default function HomePage() {
           <div id="insights" className="scroll-mt-24">
             <WeeklyUsageSection
               data={data?.weeklyUsage ?? null}
-              capacity={data?.status?.capacity ?? null}
               isLoading={isLoading}
             />
           </div>
