@@ -144,6 +144,13 @@ export function AdminDataTable({
   const [demoBusy, setDemoBusy] = useState(false);
   const [demoError, setDemoError] = useState<string | null>(null);
 
+  // "Set capacity for all readings" — a bulk overwrite of every row's capacity.
+  const [bulkCapacity, setBulkCapacity] = useState(String(defaultCapacity));
+  const [bulkConfirm, setBulkConfirm] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [bulkDone, setBulkDone] = useState<number | null>(null);
+
   const toggleDemo = useCallback(
     async (next: boolean) => {
       setDemoBusy(true);
@@ -212,6 +219,34 @@ export function AdminDataTable({
       setRefreshing(false);
     }
   }, []);
+
+  const applyBulkCapacity = useCallback(async () => {
+    const cap = Number(bulkCapacity);
+    if (!Number.isFinite(cap) || cap <= 0) {
+      setBulkError("Capacity must be greater than 0.");
+      setBulkConfirm(false);
+      return;
+    }
+    setBulkBusy(true);
+    setBulkError(null);
+    try {
+      const res = await fetch("/api/admin-readings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ capacity: cap }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      setBulkDone(body.updated ?? 0);
+      setBulkConfirm(false);
+      // Pull the rewritten rows back in so the table reflects the new capacity.
+      await refresh();
+    } catch (e) {
+      setBulkError((e as Error).message);
+    } finally {
+      setBulkBusy(false);
+    }
+  }, [bulkCapacity, refresh]);
 
   const saveRow = useCallback(
     async (row: RowState) => {
@@ -383,6 +418,87 @@ export function AdminDataTable({
   return (
     <div className="space-y-4">
       {demoCard}
+
+      {/* Bulk capacity — overwrite the capacity on every stored reading. */}
+      <Card className="p-5">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <label
+              htmlFor="bulk-capacity"
+              className="text-sm font-medium text-foreground"
+            >
+              Set capacity for all readings
+            </label>
+            <p className="mt-1 max-w-lg text-sm text-muted-foreground">
+              Overwrite the capacity on every reading in the database. Past
+              readings&apos; &ldquo;% full&rdquo; re-scale to this number.
+            </p>
+            {bulkError ? (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-rose-700">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                {bulkError}
+              </p>
+            ) : bulkDone !== null ? (
+              <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                <Check className="h-3.5 w-3.5" />
+                Updated {bulkDone.toLocaleString()}{" "}
+                {bulkDone === 1 ? "reading" : "readings"}.
+              </p>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              id="bulk-capacity"
+              type="number"
+              min={1}
+              inputMode="numeric"
+              value={bulkCapacity}
+              onChange={(e) => {
+                setBulkCapacity(e.target.value);
+                setBulkConfirm(false);
+                setBulkDone(null);
+                setBulkError(null);
+              }}
+              className="w-24 rounded-lg border border-border bg-white px-2.5 py-1.5 text-sm text-foreground focus:border-pond-500 focus:outline-none focus:ring-2 focus:ring-pond-500/20"
+            />
+            {bulkConfirm ? (
+              <>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={applyBulkCapacity}
+                  disabled={bulkBusy}
+                >
+                  {bulkBusy
+                    ? "Applying…"
+                    : `Overwrite all ${loadedTotal.toLocaleString()}`}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setBulkConfirm(false)}
+                  disabled={bulkBusy}
+                >
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setBulkDone(null);
+                  setBulkError(null);
+                  setBulkConfirm(true);
+                }}
+                disabled={loadedTotal === 0}
+              >
+                Apply to all
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">

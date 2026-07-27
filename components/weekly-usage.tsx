@@ -5,24 +5,28 @@ import { Card } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
 import { cn, pctFull } from "@/lib/utils";
 import { formatTrackingDays, weekdayShortName } from "@/lib/time";
-import { POOL_TRACKING_DAYS } from "@/lib/config";
+import { POOL_CAPACITY, POOL_TRACKING_DAYS } from "@/lib/config";
 import type { WeeklyUsage } from "@/lib/types";
 
 interface WeeklyUsageProps {
   data: WeeklyUsage | null;
-  capacity: number | null;
   isLoading: boolean;
 }
 
 export function WeeklyUsageSection({
   data,
-  capacity,
   isLoading,
 }: WeeklyUsageProps) {
-  if (!data || !capacity) {
+  if (!data) {
     if (isLoading) return <WeeklyUsageSkeleton />;
     return <WeeklyUsageEmpty />;
   }
+
+  // Weekly Usage is a 7-day historical summary, so its capacity is the pool's
+  // configured capacity — not the live reading's. Sourcing it from the live
+  // status blanked the whole card between readings (status is null once the
+  // newest reading goes stale), even with plenty of history.
+  const capacity = POOL_CAPACITY;
 
   const peakPct = pctFull(data.peakDay.averageOccupancy, capacity);
   const quietPct = pctFull(data.quietestTime.averageOccupancy, capacity);
