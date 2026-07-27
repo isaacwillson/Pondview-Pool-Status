@@ -39,7 +39,7 @@ export const SENSOR_INTERVAL_MS = 5 * 60_000;
  * How long after the latest reading we still consider the data "fresh".
  * Older than this and the live status falls back to the empty state.
  */
-export const FRESH_READING_WINDOW_MS = 30 * 60_000;
+export const FRESH_READING_WINDOW_MS = 65 * 60_000;
 
 /**
  * Window of recent readings used to compute the trend ("rising" vs

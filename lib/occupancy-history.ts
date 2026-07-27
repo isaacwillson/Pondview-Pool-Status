@@ -131,6 +131,21 @@ export async function updateReading(
   return rows.length ? toReading(rows[0]) : null;
 }
 
+/**
+ * Overwrite the capacity on every stored reading. Returns the number of rows
+ * updated. Used by the data editor's "set capacity for all readings" control;
+ * past readings' "% full" re-scales to the new capacity.
+ */
+export async function setAllReadingsCapacity(capacity: number): Promise<number> {
+  const sql = getSql();
+  if (!sql) return 0;
+  await ensureSchema();
+  const rows = await sql<{ id: number }[]>`
+    UPDATE occupancy_readings SET capacity = ${capacity} RETURNING id
+  `;
+  return rows.length;
+}
+
 /** Delete a reading by id. Returns true if a row was removed. */
 export async function deleteReading(id: number): Promise<boolean> {
   const sql = getSql();
