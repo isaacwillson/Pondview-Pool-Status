@@ -70,6 +70,16 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
     return () => mq.removeEventListener("change", update);
   }, []);
 
+  // Yesterday is the only tab we hide when empty (see availableTabs below).
+  // If it's the selected tab and its data goes away — e.g. the 30s poll
+  // crosses midnight and the old "yesterday" drops off — fall back to the
+  // day's sensible default so we're never stuck on a tab that isn't shown.
+  useEffect(() => {
+    if (tab === "yesterday" && data?.yesterday == null) {
+      setTab(isTrackingDay() ? "today" : "average");
+    }
+  }, [tab, data?.yesterday]);
+
   // Hoisted above early returns so all hooks are called unconditionally.
   const localHour = Math.floor(currentLocalHour());
   const tabData = data?.[tab] ?? null;
@@ -157,6 +167,12 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
   }
 
   const activeTab = TABS.find((t) => t.id === tab)!;
+  // Yesterday is a dead-end when it has no data: the day is over, so it will
+  // never fill in. Only offer the tab when there's something to show. Today
+  // and Weekly avg. always render, so the strip never drops below two tabs.
+  const availableTabs = TABS.filter(
+    (t) => t.id !== "yesterday" || data.yesterday != null,
+  );
   // Only hours that have already started are eligible for "quietest window"
   // on the Today tab — future hours have activity=0 and would always win.
   const eligibleForQuietest =
@@ -181,7 +197,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
           aria-label="Time range"
           className="inline-flex rounded-full border border-border/70 bg-white/60 p-1 backdrop-blur"
         >
-          {TABS.map((t) => (
+          {availableTabs.map((t) => (
             <button
               key={t.id}
               role="tab"
