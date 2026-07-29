@@ -82,7 +82,7 @@ export function LiveConditions({
   const trendSecondary = closed
     ? "Check back during open hours"
     : status
-      ? trendSubtitle(status.trend)
+      ? trendSubtitle(status)
       : isLoading
         ? "Connecting…"
         : untracked
@@ -286,15 +286,14 @@ function trendDisplay(t: PoolStatus["trend"]) {
   }
 }
 
-function trendSubtitle(t: PoolStatus["trend"]) {
-  switch (t) {
-    case "rising":
-      return "+8% in last 30 min";
-    case "falling":
-      return "−5% in last 30 min";
-    default:
-      return "No change in last 30 min";
-  }
+function trendSubtitle(status: PoolStatus) {
+  if (status.trend === "steady") return "No change in last 30 min";
+  const sign = status.trend === "rising" ? "+" : "−";
+  const abs = Math.abs(status.trendDeltaPct);
+  // Below a full point the rounded value can read "0"; show "<1%" so the
+  // magnitude never contradicts the "Getting Busier/Quieter" headline.
+  const magnitude = abs >= 1 ? `${sign}${abs}%` : `${sign}<1%`;
+  return `${magnitude} in last 30 min`;
 }
 
 function uvLabel(uv: number) {
