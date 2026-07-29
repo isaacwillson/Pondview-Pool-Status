@@ -16,7 +16,7 @@ import {
   WEEKLY_USAGE_WINDOW_DAYS,
 } from "./config";
 import { ensureSchema, getSql } from "./db";
-import type { HourlyActivity, Trend, WeeklyUsage } from "./types";
+import type { HourlyActivity, Trend, TrendInfo, WeeklyUsage } from "./types";
 import { activityToCrowdLevel } from "./mock-data";
 import { weekdayLongName } from "./time";
 
@@ -190,17 +190,20 @@ export async function getLatestReading(): Promise<LatestReading | null> {
 }
 
 /** Compares the latest reading to one ~30 min ago to derive a trend. */
-export async function getTrend(): Promise<Trend> {
+export async function getTrend(): Promise<TrendInfo> {
+  const steady: TrendInfo = { direction: "steady", deltaPct: 0 };
   const sql = getSql();
-  if (!sql) return "steady";
+  if (!sql) return steady;
   await ensureSchema();
 
   const windowMinutes = Math.round(TREND_WINDOW_MS / 60_000);
   // Tolerance window so a missing exact-30-min-ago reading still finds
   // one nearby; otherwise small gaps would always look "steady".
-  const rows = await sql<{ then_avg: number | null; now_occ: number | null }[]>`
+  const rows = await sql<
+    { then_avg: number | null; now_occ: number | null; capacity: number | null }[]
+  >`
     WITH latest AS (
-      SELECT occupancy
+      SELECT occupancy, capacity
       FROM occupancy_readings
       ORDER BY recorded_at DESC
       LIMIT 1
@@ -213,14 +216,18 @@ export async function getTrend(): Promise<Trend> {
     )
     SELECT
       (SELECT avg_occ FROM earlier) AS then_avg,
-      (SELECT occupancy FROM latest) AS now_occ
+      (SELECT occupancy FROM latest) AS now_occ,
+      (SELECT capacity FROM latest) AS capacity
   `;
-  const { then_avg, now_occ } = rows[0];
-  if (then_avg === null || now_occ === null) return "steady";
+  const { then_avg, now_occ, capacity } = rows[0];
+  if (then_avg === null || now_occ === null) return steady;
   const delta = now_occ - then_avg;
-  if (delta >= 2) return "rising";
-  if (delta <= -2) return "falling";
-  return "steady";
+  // Express the move as a change in fullness (percentage points), matching the
+  // "% full" language used everywhere else in the UI.
+  const deltaPct = Math.round((delta / Math.max(1, capacity ?? 0)) * 100);
+  const direction: Trend =
+    delta >= 2 ? "rising" : delta <= -2 ? "falling" : "steady";
+  return { direction, deltaPct };
 }
 
 // ---------------------------------------------------------------------------
