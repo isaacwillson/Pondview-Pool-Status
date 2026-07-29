@@ -24,6 +24,17 @@ export const metadata: Metadata = {
     "Real-time pool occupancy, crowd levels, and weather conditions for Pondview residents.",
 };
 
+export const metadata = {
+  title: "Pondview Pool Status",
+  description: "Live pool status and how busy it is right now.",
+  openGraph: {
+    title: "Pondview Pool Status",
+    description: "Live pool status and how busy it is right now.",
+    images: ["docs\desktop hero-card snip.png"],
+    type: "website",
+  },
+};
+
 export default function RootLayout({
   children,
 }: {
