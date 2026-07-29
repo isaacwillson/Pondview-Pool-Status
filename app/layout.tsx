@@ -18,13 +18,14 @@ const instrumentSerif = Instrument_Serif({
   display: "swap",
 });
 
-export const metadata = {
+export const metadata: Metadata = {
+  metadataBase: new URL("https://pondviewpool.vercel.app"),
   title: "Pondview Pool Status",
   description: "Real-time pool occupancy, crowd levels, and weather conditions for Pondview residents.",
   openGraph: {
     title: "Pondview Pool Status",
     description: "Live pool status and how busy it is right now.",
-    images: ["docs\desktop hero-card snip.png"],
+    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
     type: "website",
   },
 };
