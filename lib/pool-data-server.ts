@@ -68,7 +68,8 @@ export async function buildLiveSnapshot(
       occupancy: latest.occupancy,
       capacity: latest.capacity,
       lastUpdated: latest.recordedAt,
-      trend,
+      trend: trend.direction,
+      trendDeltaPct: trend.deltaPct,
     };
   }
 

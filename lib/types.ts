@@ -16,6 +16,13 @@ export type CrowdLevel =
 
 export type Trend = "rising" | "steady" | "falling";
 
+/** Direction plus magnitude of the recent occupancy move. */
+export interface TrendInfo {
+  direction: Trend;
+  /** Signed change in fullness (percentage points) over the trend window. */
+  deltaPct: number;
+}
+
 export interface PoolStatus {
   /** Categorical crowd level — drives the headline color & label. */
   crowdLevel: CrowdLevel;
@@ -27,6 +34,8 @@ export interface PoolStatus {
   lastUpdated: Date;
   /** Direction occupancy is moving over the last ~30 minutes. */
   trend: Trend;
+  /** Signed change in fullness (percentage points) over that same window. */
+  trendDeltaPct: number;
 }
 
 export interface PoolConditions {
