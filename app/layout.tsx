@@ -18,15 +18,9 @@ const instrumentSerif = Instrument_Serif({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Pondview Pool Status — Live Amenity Dashboard",
-  description:
-    "Real-time pool occupancy, crowd levels, and weather conditions for Pondview residents.",
-};
-
 export const metadata = {
   title: "Pondview Pool Status",
-  description: "Live pool status and how busy it is right now.",
+  description: "Real-time pool occupancy, crowd levels, and weather conditions for Pondview residents.",
   openGraph: {
     title: "Pondview Pool Status",
     description: "Live pool status and how busy it is right now.",
