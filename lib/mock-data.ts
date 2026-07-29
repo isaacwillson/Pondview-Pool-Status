@@ -162,6 +162,9 @@ export function buildSnapshot(now: Date = new Date()): PoolDataSnapshot {
       : prevActivity - nowActivity > 0.03
         ? "falling"
         : "steady";
+  // Fullness change (percentage points) over the last hour, matching the live
+  // path — activity is already a 0–1 fullness fraction.
+  const trendDeltaPct = Math.round((nowActivity - prevActivity) * 100);
   const occupancy = Math.round(nowActivity * CAPACITY);
   const lastUpdated = new Date(now.getTime() - 2 * 60_000);
 
@@ -172,6 +175,7 @@ export function buildSnapshot(now: Date = new Date()): PoolDataSnapshot {
       capacity: CAPACITY,
       lastUpdated,
       trend,
+      trendDeltaPct,
     },
     conditions: buildConditions(now),
     hourlyActivity: {
