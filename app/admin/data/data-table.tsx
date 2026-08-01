@@ -24,6 +24,8 @@ interface ApiRow {
   occupancy: number;
   capacity: number;
   recordedAt: string;
+  umbrellasMain: number | null;
+  umbrellasKitty: number | null;
 }
 
 interface AdminDataTableProps {
@@ -40,6 +42,8 @@ interface RowState {
   id: number | null; // null = unsaved draft
   occupancy: string;
   capacity: string;
+  umbMain: string; // umbrellas in use, main pool; "" = not counted
+  umbKitty: string; // umbrellas in use, kitty pool; "" = not counted
   when: string; // datetime-local value (browser local time)
   baseline: string | null; // signature of last-saved values; null for a draft
   saving: boolean;
@@ -85,8 +89,31 @@ function localInputToIso(local: string): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-function signature(occupancy: string, capacity: string, when: string): string {
-  return `${occupancy.trim()}|${capacity.trim()}|${when}`;
+/**
+ * An umbrella-count field: blank → null ("not counted"), a valid non-negative
+ * number → that number, anything else → "invalid" so the caller can flag it.
+ */
+function parseUmbrellaInput(raw: string): number | null | "invalid" {
+  if (raw.trim() === "") return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return "invalid";
+  return Math.round(n);
+}
+
+function signature(row: {
+  occupancy: string;
+  capacity: string;
+  umbMain: string;
+  umbKitty: string;
+  when: string;
+}): string {
+  return [
+    row.occupancy.trim(),
+    row.capacity.trim(),
+    row.umbMain.trim(),
+    row.umbKitty.trim(),
+    row.when,
+  ].join("|");
 }
 
 /**
@@ -113,14 +140,18 @@ function rowHaystack(when: string): string {
 function fromApiRow(r: ApiRow): RowState {
   const occupancy = String(r.occupancy);
   const capacity = String(r.capacity);
+  const umbMain = r.umbrellasMain === null ? "" : String(r.umbrellasMain);
+  const umbKitty = r.umbrellasKitty === null ? "" : String(r.umbrellasKitty);
   const when = isoToLocalInput(r.recordedAt);
   return {
     key: `row-${r.id}`,
     id: r.id,
     occupancy,
     capacity,
+    umbMain,
+    umbKitty,
     when,
-    baseline: signature(occupancy, capacity, when),
+    baseline: signature({ occupancy, capacity, umbMain, umbKitty, when }),
     saving: false,
     error: null,
   };
@@ -190,6 +221,8 @@ export function AdminDataTable({
         id: null,
         occupancy: "",
         capacity: String(defaultCapacity),
+        umbMain: "",
+        umbKitty: "",
         when: nowLocalInput(),
         baseline: null,
         saving: false,
@@ -262,6 +295,18 @@ export function AdminDataTable({
         patchRow(row.key, { error: "Capacity must be greater than 0." });
         return;
       }
+      // Umbrellas are optional: blank → null ("not counted"). If filled, must
+      // be a non-negative number.
+      const umb = parseUmbrellaInput(row.umbMain);
+      if (umb === "invalid") {
+        patchRow(row.key, { error: "Main umbrellas must be 0 or more, or blank." });
+        return;
+      }
+      const umbK = parseUmbrellaInput(row.umbKitty);
+      if (umbK === "invalid") {
+        patchRow(row.key, { error: "Kitty umbrellas must be 0 or more, or blank." });
+        return;
+      }
       if (!recordedAt) {
         patchRow(row.key, { error: "Enter a valid date & time." });
         return;
@@ -278,6 +323,8 @@ export function AdminDataTable({
             occupancy,
             capacity,
             recordedAt,
+            umbrellasMain: umb,
+            umbrellasKitty: umbK,
           }),
         });
         const body = await res.json().catch(() => ({}));
@@ -560,16 +607,22 @@ export function AdminDataTable({
         {/* Fixed-height window: the page stays put and the data scrolls.
             Header cells are sticky so column labels survive the scroll. */}
         <div className="max-h-[560px] overflow-auto">
-          <table className="w-full min-w-[720px] border-collapse text-sm">
+          <table className="w-full min-w-[880px] border-collapse text-sm">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                {["Recorded at", "Occupancy", "Capacity", "% Full", "Level"].map(
-                  (label) => (
-                    <th key={label} className={STICKY_TH}>
-                      {label}
-                    </th>
-                  ),
-                )}
+                {[
+                  "Recorded at",
+                  "Occupancy",
+                  "Capacity",
+                  "% Full",
+                  "Level",
+                  "Umb. main",
+                  "Umb. kitty",
+                ].map((label) => (
+                  <th key={label} className={STICKY_TH}>
+                    {label}
+                  </th>
+                ))}
                 <th className={`${STICKY_TH} text-right`}>Actions</th>
               </tr>
             </thead>
@@ -577,7 +630,7 @@ export function AdminDataTable({
               {rows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={8}
                     className="px-4 py-12 text-center text-muted-foreground"
                   >
                     No readings yet. Click{" "}
@@ -588,7 +641,7 @@ export function AdminDataTable({
               ) : visibleRows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={8}
                     className="px-4 py-12 text-center text-muted-foreground"
                   >
                     No readings match{" "}
@@ -641,7 +694,7 @@ function DataRow({
   const pct = valid ? pctFull(occ, cap) : null;
   const level = valid ? activityToCrowdLevel(occ / cap) : null;
 
-  const dirty = row.baseline !== signature(row.occupancy, row.capacity, row.when);
+  const dirty = row.baseline !== signature(row);
   const isDraft = row.id === null;
 
   const inputClass =
@@ -694,6 +747,30 @@ function DataRow({
             "—"
           )}
         </td>
+        <td className="px-4 py-2.5 align-middle">
+          <input
+            type="number"
+            min={0}
+            inputMode="numeric"
+            placeholder="—"
+            value={row.umbMain}
+            onChange={(e) => onChange({ umbMain: e.target.value })}
+            className={`w-20 ${inputClass}`}
+            aria-label="Umbrellas in use, main pool"
+          />
+        </td>
+        <td className="px-4 py-2.5 align-middle">
+          <input
+            type="number"
+            min={0}
+            inputMode="numeric"
+            placeholder="—"
+            value={row.umbKitty}
+            onChange={(e) => onChange({ umbKitty: e.target.value })}
+            className={`w-20 ${inputClass}`}
+            aria-label="Umbrellas in use, kitty pool"
+          />
+        </td>
         <td className="px-4 py-2.5 text-right align-middle">
           <div className="flex items-center justify-end gap-1.5">
             {isDraft || dirty ? (
@@ -726,7 +803,7 @@ function DataRow({
       </tr>
       {row.error ? (
         <tr>
-          <td colSpan={6} className="px-4 pb-2.5">
+          <td colSpan={8} className="px-4 pb-2.5">
             <p className="flex items-center gap-1.5 text-xs text-rose-700">
               <AlertTriangle className="h-3.5 w-3.5" />
               {row.error}
