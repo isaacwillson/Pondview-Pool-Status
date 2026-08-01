@@ -129,6 +129,14 @@ export function LiveConditions({
           faded={closed || untracked}
           className="lg:col-span-3"
         />
+
+        {/* Shade — high up (people specifically look for it) and given its own
+            tinted treatment so it doesn't blend into the weather cards. Shown
+            only when there's a live count, so it never renders hollow. */}
+        {!closed && umbrellas && umbrellas.length > 0 ? (
+          <ShadeCard zones={umbrellas} />
+        ) : null}
+
         {/* Row 2: Temperature + UV (related pair) */}
         <ConditionCard
           icon={<Thermometer className="h-4 w-4" />}
@@ -146,12 +154,6 @@ export function LiveConditions({
           accent="amber"
           className="lg:col-span-3"
         />
-        {/* Shade — per-zone umbrella availability, only when there's a live
-            count (hidden rather than showing a hollow card, to avoid clutter). */}
-        {!closed && umbrellas && umbrellas.length > 0 ? (
-          <ShadeCard zones={umbrellas} />
-        ) : null}
-
         {/* Row 3: Pool Hours — full width anchor */}
         <ConditionCard
           icon={<Clock className="h-4 w-4" />}
@@ -258,21 +260,36 @@ function ConditionCard({
  * the main pool isn't misled by shade that's only free at the kitty pool.
  */
 function ShadeCard({ zones }: { zones: UmbrellaZone[] }) {
+  const totalFree = zones.reduce(
+    (sum, z) => sum + Math.max(0, z.total - z.inUse),
+    0,
+  );
   return (
-    <Card className="col-span-2 p-5 lg:col-span-6">
-      <div className="flex items-center gap-2.5">
-        <span
-          className="flex h-8 w-8 items-center justify-center rounded-lg bg-pond-50 text-pond-600"
-          aria-hidden
-        >
-          <Umbrella className="h-4 w-4" />
-        </span>
-        <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
-          Shade · umbrellas free
-        </p>
+    <Card className="col-span-2 border-pond-200/70 bg-pond-50/60 p-5 lg:col-span-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span
+            className="flex h-9 w-9 items-center justify-center rounded-lg bg-pond-100 text-pond-700"
+            aria-hidden
+          >
+            <Umbrella className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-pond-700">
+              Shade
+            </p>
+            <p className="text-sm text-muted-foreground">Umbrellas free right now</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <span className="font-display text-3xl leading-none text-pond-800 tabular-nums">
+            {totalFree}
+          </span>
+          <span className="ml-1 text-sm text-muted-foreground">free</span>
+        </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+      <div className="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
         {zones.map((z) => {
           const free = Math.max(0, z.total - z.inUse);
           const usedPct = z.total > 0 ? (z.inUse / z.total) * 100 : 0;
@@ -286,7 +303,7 @@ function ShadeCard({ zones }: { zones: UmbrellaZone[] }) {
                   <span
                     className={cn(
                       "font-semibold",
-                      free === 0 ? "text-rose-600" : "text-foreground",
+                      free === 0 ? "text-rose-600" : "text-pond-700",
                     )}
                   >
                     {free}
@@ -295,7 +312,7 @@ function ShadeCard({ zones }: { zones: UmbrellaZone[] }) {
                 </span>
               </div>
               <div
-                className="mt-2 h-2 w-full overflow-hidden rounded-full bg-pond-100"
+                className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-pond-100 ring-1 ring-inset ring-pond-200/60"
                 role="img"
                 aria-label={`${z.label}: ${free} of ${z.total} umbrellas free`}
               >
