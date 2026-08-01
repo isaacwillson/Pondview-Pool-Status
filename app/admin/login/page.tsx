@@ -41,7 +41,7 @@ export default async function AdminLoginPage({
 
 function safeNext(value: string | undefined): string {
   if (!value || !value.startsWith("/") || value.startsWith("//")) {
-    return "/admin/pool";
+    return "/admin";
   }
   return value;
 }
