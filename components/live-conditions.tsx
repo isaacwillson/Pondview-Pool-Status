@@ -6,6 +6,7 @@ import {
   Thermometer,
   TrendingDown,
   TrendingUp,
+  Umbrella,
   Users,
 } from "lucide-react";
 import { Card } from "./ui/card";
@@ -22,11 +23,12 @@ import {
   formatTrackingDays,
   isTrackingDay,
 } from "@/lib/time";
-import type { PoolConditions, PoolStatus } from "@/lib/types";
+import type { PoolConditions, PoolStatus, UmbrellaZone } from "@/lib/types";
 
 interface LiveConditionsProps {
   status: PoolStatus | null;
   conditions: PoolConditions | null;
+  umbrellas: UmbrellaZone[] | null;
   adminStatus: AdminPoolStatus | null;
   isLoading: boolean;
 }
@@ -34,6 +36,7 @@ interface LiveConditionsProps {
 export function LiveConditions({
   status,
   conditions,
+  umbrellas,
   adminStatus,
   isLoading,
 }: LiveConditionsProps) {
@@ -143,6 +146,12 @@ export function LiveConditions({
           accent="amber"
           className="lg:col-span-3"
         />
+        {/* Shade — per-zone umbrella availability, only when there's a live
+            count (hidden rather than showing a hollow card, to avoid clutter). */}
+        {!closed && umbrellas && umbrellas.length > 0 ? (
+          <ShadeCard zones={umbrellas} />
+        ) : null}
+
         {/* Row 3: Pool Hours — full width anchor */}
         <ConditionCard
           icon={<Clock className="h-4 w-4" />}
@@ -239,6 +248,65 @@ function ConditionCard({
             {note}
           </p>
         ) : null}
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * Full-width shade card: umbrellas free, split by zone so a resident wanting
+ * the main pool isn't misled by shade that's only free at the kitty pool.
+ */
+function ShadeCard({ zones }: { zones: UmbrellaZone[] }) {
+  return (
+    <Card className="col-span-2 p-5 lg:col-span-6">
+      <div className="flex items-center gap-2.5">
+        <span
+          className="flex h-8 w-8 items-center justify-center rounded-lg bg-pond-50 text-pond-600"
+          aria-hidden
+        >
+          <Umbrella className="h-4 w-4" />
+        </span>
+        <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+          Shade · umbrellas free
+        </p>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+        {zones.map((z) => {
+          const free = Math.max(0, z.total - z.inUse);
+          const usedPct = z.total > 0 ? (z.inUse / z.total) * 100 : 0;
+          return (
+            <div key={z.id}>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm font-medium text-foreground">
+                  {z.label}
+                </span>
+                <span className="text-sm tabular-nums text-muted-foreground">
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      free === 0 ? "text-rose-600" : "text-foreground",
+                    )}
+                  >
+                    {free}
+                  </span>{" "}
+                  of {z.total} free
+                </span>
+              </div>
+              <div
+                className="mt-2 h-2 w-full overflow-hidden rounded-full bg-pond-100"
+                role="img"
+                aria-label={`${z.label}: ${free} of ${z.total} umbrellas free`}
+              >
+                <div
+                  className="h-full rounded-full bg-pond-500 transition-[width] duration-700"
+                  style={{ width: `${usedPct}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </Card>
   );

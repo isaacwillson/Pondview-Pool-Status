@@ -61,6 +61,7 @@ export default function HomePage() {
             <LiveConditions
               status={data?.status ?? null}
               conditions={data?.conditions ?? null}
+              umbrellas={data?.umbrellas ?? null}
               adminStatus={adminStatus}
               isLoading={isLoading}
             />

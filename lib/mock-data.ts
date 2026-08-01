@@ -1,4 +1,9 @@
-import { POOL_CAPACITY, POOL_CLOSE_HOUR, POOL_OPEN_HOUR } from "./config";
+import {
+  POOL_CAPACITY,
+  POOL_CLOSE_HOUR,
+  POOL_OPEN_HOUR,
+  UMBRELLA_ZONES,
+} from "./config";
 import { currentLocalHour } from "./time";
 import type {
   CrowdLevel,
@@ -197,5 +202,13 @@ export function buildSnapshot(now: Date = new Date()): PoolDataSnapshot {
       // Per weekday (Sun…Sat); untracked days are 0, Saturday is the peak.
       dailyAverages: [0, 0, 24, 31, 38, 0, 47],
     },
+    // Umbrella use tracks how busy the pool is, so the demo stays consistent
+    // with its own occupancy curve.
+    umbrellas: UMBRELLA_ZONES.map((z) => ({
+      id: z.id,
+      label: z.label,
+      total: z.total,
+      inUse: Math.min(z.total, Math.round(z.total * nowActivity)),
+    })),
   };
 }

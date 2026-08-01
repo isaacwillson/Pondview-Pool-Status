@@ -43,14 +43,37 @@ function serialize(r: Reading) {
     occupancy: r.occupancy,
     capacity: r.capacity,
     recordedAt: r.recordedAt.toISOString(),
+    umbrellasMain: r.umbrellasMain,
+    umbrellasKitty: r.umbrellasKitty,
   };
+}
+
+/**
+ * Parse an optional umbrella count: blank/absent → null (not counted),
+ * a valid non-negative number → that number, anything else → an error string.
+ */
+function parseUmbrella(
+  v: unknown,
+  field: string,
+): { value: number | null } | { error: string } {
+  if (v === undefined || v === null || v === "") return { value: null };
+  if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
+    return { error: `\`${field}\` must be a non-negative number.` };
+  }
+  return { value: Math.round(v) };
 }
 
 /** Validate the editable fields shared by POST/PATCH. */
 function parseFields(body: Record<string, unknown>, requireCapacity: boolean):
-  | { occupancy: number; capacity: number; recordedAt?: Date }
+  | {
+      occupancy: number;
+      capacity: number;
+      recordedAt?: Date;
+      umbrellasMain: number | null;
+      umbrellasKitty: number | null;
+    }
   | { error: string } {
-  const { occupancy, capacity, recordedAt } = body;
+  const { occupancy, capacity, recordedAt, umbrellasMain, umbrellasKitty } = body;
 
   if (
     typeof occupancy !== "number" ||
@@ -70,6 +93,11 @@ function parseFields(body: Record<string, unknown>, requireCapacity: boolean):
     return { error: "`capacity` is required." };
   }
 
+  const mainUmb = parseUmbrella(umbrellasMain, "umbrellasMain");
+  if ("error" in mainUmb) return { error: mainUmb.error };
+  const kittyUmb = parseUmbrella(umbrellasKitty, "umbrellasKitty");
+  if ("error" in kittyUmb) return { error: kittyUmb.error };
+
   let recorded: Date | undefined;
   if (recordedAt !== undefined && recordedAt !== null) {
     if (typeof recordedAt !== "string") {
@@ -82,7 +110,13 @@ function parseFields(body: Record<string, unknown>, requireCapacity: boolean):
     recorded = parsed;
   }
 
-  return { occupancy: Math.round(occupancy), capacity: cap, recordedAt: recorded };
+  return {
+    occupancy: Math.round(occupancy),
+    capacity: cap,
+    recordedAt: recorded,
+    umbrellasMain: mainUmb.value,
+    umbrellasKitty: kittyUmb.value,
+  };
 }
 
 async function readJson(request: Request): Promise<Record<string, unknown> | null> {

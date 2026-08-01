@@ -20,9 +20,31 @@ import type {
   HourlyActivitySet,
   PoolDataSnapshot,
   PoolStatus,
+  UmbrellaZone,
 } from "./types";
 import { getWeather } from "./weather";
-import { FRESH_READING_WINDOW_MS } from "./config";
+import { FRESH_READING_WINDOW_MS, UMBRELLA_ZONES } from "./config";
+import type { LatestReading } from "./occupancy-history";
+
+/**
+ * Turn the latest reading's umbrella columns into per-zone availability.
+ * Returns null unless both zones were counted, so a partial reading shows the
+ * "not counted" empty state rather than a misleading half-count.
+ */
+function buildUmbrellas(latest: LatestReading): UmbrellaZone[] | null {
+  const inUseById: Record<string, number | null> = {
+    main: latest.umbrellasMain,
+    kitty: latest.umbrellasKitty,
+  };
+  if (UMBRELLA_ZONES.some((z) => inUseById[z.id] == null)) return null;
+  return UMBRELLA_ZONES.map((z) => ({
+    id: z.id,
+    label: z.label,
+    total: z.total,
+    // Clamp to the zone total so a stray over-count can't show "negative free".
+    inUse: Math.min(z.total, Math.max(0, inUseById[z.id] ?? 0)),
+  }));
+}
 
 export async function buildLiveSnapshot(
   now: Date = new Date(),
@@ -60,6 +82,11 @@ export async function buildLiveSnapshot(
     latest !== null &&
     now.getTime() - latest.recordedAt.getTime() <= FRESH_READING_WINDOW_MS;
 
+  // Umbrellas share occupancy's freshness gate: a stale reading yields no live
+  // shade count, same as it yields no live status.
+  const umbrellas =
+    latest && isFresh ? buildUmbrellas(latest) : null;
+
   let status: PoolStatus | null = null;
   if (latest && isFresh) {
     const activity = latest.occupancy / Math.max(1, latest.capacity);
@@ -82,5 +109,6 @@ export async function buildLiveSnapshot(
     conditions,
     hourlyActivity,
     weeklyUsage,
+    umbrellas,
   };
 }
