@@ -60,17 +60,17 @@ export function LiveConditions({
       : isLoading
         ? "…"
         : untracked
-          ? "Not tracked"
-          : "Awaiting reading";
+          ? "Not counting"
+          : "Waiting on a count";
   const crowdSecondary = closed
-    ? effective.closedReason ?? "Pool currently closed"
+    ? effective.closedReason ?? "Closed right now"
     : status
-      ? `${occupancyPct}% full`
+      ? `about ${occupancyPct}% full`
       : isLoading
-        ? "Connecting…"
+        ? "One sec…"
         : untracked
-          ? "Live tracking off today"
-          : "No readings yet";
+          ? "We're not counting today"
+          : "Haven't counted yet today";
   const crowdAccent: "emerald" | "amber" | "pond" = closed
     ? "amber"
     : status
@@ -80,22 +80,22 @@ export function LiveConditions({
 
   const trendPrimary = status ? trendDisplay(status.trend) : "—";
   const trendSecondary = closed
-    ? "Check back during open hours"
+    ? "Check back when we're open"
     : status
       ? trendSubtitle(status)
       : isLoading
-        ? "Connecting…"
+        ? "One sec…"
         : untracked
-          ? "Off today"
-          : "Available after a few readings";
+          ? "Not today"
+          : "Need a couple more counts";
   const trendMuted = closed || !status;
 
   return (
     <section aria-labelledby="conditions-heading">
       <SectionHeading
         eyebrow=""
-        title="Live Pool Conditions"
-        subtitle="Updated continuously from on-site sensors."
+        title="Right Now"
+        subtitle="How things look at the pool today."
         id="conditions-heading"
       />
 
@@ -103,7 +103,7 @@ export function LiveConditions({
         {/* Row 1: Crowd + Trend (related pair) */}
         <ConditionCard
           icon={<Users className="h-4 w-4" />}
-          label="Crowd Level"
+          label="How Busy"
           primary={crowdPrimary}
           secondary={crowdSecondary}
           accent={crowdAccent}
@@ -129,7 +129,7 @@ export function LiveConditions({
         {/* Row 2: Temperature + UV (related pair) */}
         <ConditionCard
           icon={<Thermometer className="h-4 w-4" />}
-          label="Air Temperature"
+          label="Air"
           primary={`${conditions.airTempF}°F`}
           secondary={`Water ${conditions.waterTempF}°F`}
           accent="rose"
@@ -149,7 +149,7 @@ export function LiveConditions({
           label="Pool Hours"
           primary={`${formatHourLabel(conditions.openFromHour)} – ${formatHourLabel(conditions.openUntilHour)}`}
           secondary={hoursSecondary(effective, conditions)}
-          note={`Crowd levels tracked ${formatTrackingDays()}`}
+          note={`We count heads ${formatTrackingDays()}`}
           accent="pond"
           className="col-span-2 lg:col-span-6"
         />
@@ -278,22 +278,22 @@ function SectionHeading({
 function trendDisplay(t: PoolStatus["trend"]) {
   switch (t) {
     case "rising":
-      return "Getting Busier";
+      return "Filling Up";
     case "falling":
-      return "Getting Quieter";
+      return "Emptying Out";
     default:
-      return "Steady";
+      return "Holding Steady";
   }
 }
 
 function trendSubtitle(status: PoolStatus) {
-  if (status.trend === "steady") return "No change in last 30 min";
+  if (status.trend === "steady") return "About the same as 30 min ago";
   const sign = status.trend === "rising" ? "+" : "−";
   const abs = Math.abs(status.trendDeltaPct);
   // Below a full point the rounded value can read "0"; show "<1%" so the
-  // magnitude never contradicts the "Getting Busier/Quieter" headline.
+  // magnitude never contradicts the "Filling Up / Emptying Out" headline.
   const magnitude = abs >= 1 ? `${sign}${abs}%` : `${sign}<1%`;
-  return `${magnitude} in last 30 min`;
+  return `${magnitude} in the last 30 min`;
 }
 
 function uvLabel(uv: number) {
@@ -306,7 +306,7 @@ function uvLabel(uv: number) {
 
 /** Sub-label for the UV card — avoids the redundant "0 / Low" pairing. */
 function uvSecondary(uv: number) {
-  if (uv === 0) return "No sun protection needed";
+  if (uv === 0) return "No sunscreen needed";
   return uvLabel(uv);
 }
 
@@ -321,7 +321,7 @@ function hoursSecondary(
     return "Closed by management";
   }
   // Schedule-driven closure — reuse the helper's friendly reason.
-  return effective.closedReason ?? "Currently closed";
+  return effective.closedReason ?? "Closed right now";
 }
 
 function LiveConditionsSkeleton() {
