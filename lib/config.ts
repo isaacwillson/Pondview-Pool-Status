@@ -7,6 +7,20 @@
 export const POOL_CAPACITY = 70;
 
 /**
+ * Shade zones and how many umbrellas each has. Totals are fixed physical facts
+ * (like POOL_CAPACITY), so they live here rather than in a database row; only
+ * the in-use count is measured per reading. "main" combines the 10 stand-alone
+ * umbrellas and the 3 shaded tables in the main pool area; "kitty" is the
+ * kiddie-pool area. Residents care which area has shade, not which umbrella.
+ */
+export const UMBRELLA_ZONES = [
+  { id: "main", label: "Main pool", total: 13 },
+  { id: "kitty", label: "Kitty pool", total: 3 },
+] as const;
+
+export type UmbrellaZoneId = (typeof UMBRELLA_ZONES)[number]["id"];
+
+/**
  * IANA timezone for the pool's physical location. Used to bucket
  * readings into local hours/days so a guest visiting at "8 AM Austin"
  * lands in the 8 AM bucket regardless of the server's clock.
