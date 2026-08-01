@@ -22,6 +22,8 @@ export default async function AdminDataPage() {
     occupancy: r.occupancy,
     capacity: r.capacity,
     recordedAt: r.recordedAt.toISOString(),
+    umbrellasMain: r.umbrellasMain,
+    umbrellasKitty: r.umbrellasKitty,
   }));
 
   return (
