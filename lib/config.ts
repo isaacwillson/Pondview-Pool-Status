@@ -18,8 +18,8 @@ export const POOL_LAT = 40.898;
 export const POOL_LON = -74.5719;
 
 /** Pool open hours in 24-hour local time (used to filter aggregates). */
-export const POOL_OPEN_HOUR = 10;
-export const POOL_CLOSE_HOUR = 20;
+export const POOL_OPEN_HOUR = 11;
+export const POOL_CLOSE_HOUR = 19;
 
 /**
  * Days of the week occupancy is actively tracked, as JS weekday indices
