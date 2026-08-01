@@ -50,37 +50,41 @@ export function WeeklyUsageSection({
   // Thresholds reflect that these are weekly *averages* (smoothed, so lower
   // than peak instantaneous occupancy).
   const quietChip =
-    quietPct < 15 ? "Wide open" : quietPct < 35 ? "Room to swim" : "Quieter";
+    quietPct < 15 ? "Wide open" : quietPct < 35 ? "Lots of room" : "Calmer";
   const popularChip =
-    popularPct >= 60 ? "Packed" : popularPct >= 35 ? "Plan ahead" : "Filling up";
-  const peakVsAvg =
+    popularPct >= 60 ? "Packed" : popularPct >= 35 ? "Worth planning" : "Filling up";
+  // How many times busier the peak day is than a typical tracked day. Shown as
+  // a multiple ("2× a typical day") rather than a percent above average — the
+  // percent was easy to misread as a fullness figure like the "% full" below.
+  const peakRatio =
     data.averageOccupancy > 0
-      ? Math.round(
-          (data.peakDay.averageOccupancy / data.averageOccupancy - 1) * 100,
-        )
+      ? data.peakDay.averageOccupancy / data.averageOccupancy
       : 0;
-  const peakChip = peakVsAvg > 0 ? `+${peakVsAvg}% vs avg` : "Busiest day";
+  const peakChip =
+    peakRatio >= 1.15
+      ? `${peakRatio.toFixed(1).replace(/\.0$/, "")}× a typical day`
+      : "Busiest day";
 
-  const quietNote = `Calmest in the ${timeOfDay(data.quietestTime.label)}.`;
-  const popularNote = `Busiest in the ${timeOfDay(
-    data.mostPopularTime.label,
-  )} — ${data.peakDay.day} is the busiest day.`;
+  const quietNote = `${capitalize(timeOfDay(data.quietestTime.label))}s are usually the calmest.`;
+  const popularNote = `${capitalize(
+    timeOfDay(data.mostPopularTime.label),
+  )}s get the busiest, and ${data.peakDay.day} is the busiest day of the week.`;
 
   return (
     <section aria-labelledby="weekly-heading">
       <div className="max-w-2xl">
         <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Community insights
+          How it usually goes
         </p>
         <h2
           id="weekly-heading"
           className="mt-3 font-display text-3xl font-normal leading-tight tracking-tight text-foreground sm:text-4xl"
         >
-          This Week’s Usage
+          This Past Week
         </h2>
         <p className="mt-3 max-w-2xl text-balance text-base text-muted-foreground">
-          Aggregated from the pool&apos;s tracked days ({formatTrackingDays()})
-          over the past week, to help you find your preferred rhythm.
+          Based on the last week of counts ({formatTrackingDays()}) — here&apos;s
+          when the pool tends to be busy and when it doesn&apos;t.
         </p>
       </div>
 
@@ -89,7 +93,7 @@ export function WeeklyUsageSection({
           icon={<Moon className="h-4 w-4" />}
           eyebrow="Quietest Time"
           value={data.quietestTime.label}
-          delta={`avg ${quietPct}% full`}
+          delta={`about ${quietPct}% full`}
           chip={quietChip}
           chipTone="success"
         >
@@ -106,9 +110,9 @@ export function WeeklyUsageSection({
 
         <AnalyticCard
           icon={<Crown className="h-4 w-4" />}
-          eyebrow="Peak Day"
+          eyebrow="Busiest Day"
           value={data.peakDay.day}
-          delta={`avg ${peakPct}% full`}
+          delta={`about ${peakPct}% full`}
           chip={peakChip}
           chipTone="warning"
         >
@@ -129,7 +133,7 @@ export function WeeklyUsageSection({
                       animation: `bar-grow 0.8s cubic-bezier(0.16, 1, 0.3, 1) ${i * 50}ms both`,
                       transformOrigin: "bottom",
                     }}
-                    title={`${b.label}: avg ${b.avg} people`}
+                    title={`${b.label}: about ${b.avg} people on average`}
                   />
                 ) : (
                   // No readings this day (untracked, or simply none) → faint stub.
@@ -158,9 +162,9 @@ export function WeeklyUsageSection({
 
         <AnalyticCard
           icon={<Calendar className="h-4 w-4" />}
-          eyebrow="Most Popular Time"
+          eyebrow="Busiest Time"
           value={data.mostPopularTime.label}
-          delta={`avg ${popularPct}% full`}
+          delta={`about ${popularPct}% full`}
           chip={popularChip}
           chipTone="warning"
         >
@@ -177,6 +181,10 @@ export function WeeklyUsageSection({
       </div>
     </section>
   );
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 /** "morning" / "afternoon" / "evening" from a slot label like "6:30 PM". */
@@ -259,17 +267,17 @@ function WeeklyUsageEmpty() {
     <section aria-labelledby="weekly-heading">
       <div className="max-w-2xl">
         <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Community insights
+          How it usually goes
         </p>
         <h2
           id="weekly-heading"
           className="mt-3 font-display text-3xl font-normal leading-tight tracking-tight text-foreground sm:text-4xl"
         >
-          This Week’s Usage
+          This Past Week
         </h2>
         <p className="mt-3 max-w-2xl text-balance text-base text-muted-foreground">
-          Aggregated from the pool&apos;s tracked days ({formatTrackingDays()})
-          over the past week, to help you find your preferred rhythm.
+          Based on the last week of counts ({formatTrackingDays()}) — here&apos;s
+          when the pool tends to be busy and when it doesn&apos;t.
         </p>
       </div>
 
@@ -280,10 +288,10 @@ function WeeklyUsageEmpty() {
             className="flex flex-col items-center justify-center border-dashed bg-secondary/30 p-8 text-center"
           >
             <p className="font-display text-xl text-foreground/80">
-              Not enough data yet
+              Nothing to show yet
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Available after ~7 days of readings.
+              Give it about a week of counts.
             </p>
           </Card>
         ))}

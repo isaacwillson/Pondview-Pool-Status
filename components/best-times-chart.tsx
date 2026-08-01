@@ -399,7 +399,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
                   aria-hidden
                 />
                 <span className="text-xs text-muted-foreground">
-                  Projected (weekly avg.)
+                  Rest of today (estimated)
                 </span>
               </div>
             )}
@@ -407,7 +407,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
 
           {quietest ? (
             <Badge variant="info" className="gap-1.5 rounded-full px-3 py-1 text-xs">
-              Quietest window {activeTab.quietestLabel} · {formatHourLabel(quietest.hour)}–
+              Calmest {activeTab.quietestLabel} · {formatHourLabel(quietest.hour)}–
               {formatHourLabel(quietest.hour + 1)}
             </Badge>
           ) : null}
@@ -437,23 +437,23 @@ function tabContext(tab: TabId): string {
   switch (tab) {
     case "today":
       return isTrackingDay()
-        ? `Showing today · ${formatPoolDate(0)}`
-        : "Not tracked today — see Weekly avg. for the typical pattern";
+        ? `Today · ${formatPoolDate(0)}`
+        : "We're not counting today — check Weekly avg. for the usual pattern";
     case "yesterday":
-      return `Showing ${formatPoolDate(-1)}`;
+      return `Yesterday · ${formatPoolDate(-1)}`;
     case "average":
-      return `Average of the pool's tracked days (${formatTrackingDays()})`;
+      return `A normal week, averaged across ${formatTrackingDays()}`;
   }
 }
 
 function emptyTabTitle(tab: TabId): string {
   switch (tab) {
     case "today":
-      return isTrackingDay() ? "No readings yet today" : "Today isn't tracked";
+      return isTrackingDay() ? "No counts yet today" : "We're not counting today";
     case "yesterday":
-      return "No data for yesterday";
+      return "Nothing from yesterday";
     case "average":
-      return "Not enough data for an average";
+      return "Not enough to average yet";
   }
 }
 
@@ -461,12 +461,12 @@ function emptyTabBody(tab: TabId): string {
   switch (tab) {
     case "today":
       return isTrackingDay()
-        ? "Today's activity curve will fill in here as occupancy is reported throughout the day."
-        : `Crowd levels are tracked ${formatTrackingDays()}. Switch to Weekly avg. to see the pool's typical pattern.`;
+        ? "This fills in as we count through the day."
+        : `We count heads ${formatTrackingDays()}. Switch to Weekly avg. to see how busy it usually gets.`;
     case "yesterday":
-      return "Yesterday's curve will appear once a full day of readings has been recorded.";
+      return "We didn't get any counts yesterday.";
     case "average":
-      return "A rolling average will appear here after readings have come in on a few tracked days.";
+      return "Once we've counted on a few more days, the usual pattern will show up here.";
   }
 }
 
@@ -476,7 +476,7 @@ function BestTimesEmpty() {
     <Card className="overflow-hidden bg-sand-50">
       <CardHeader className="p-7 sm:p-9">
         <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Plan your swim
+          When to go
         </p>
         <CardTitle className="font-display text-3xl font-normal tracking-tight sm:text-4xl">
           Best Times to Visit
@@ -485,11 +485,11 @@ function BestTimesEmpty() {
       <CardContent className="px-7 pb-9 sm:px-9">
         <div className="flex h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-secondary/40 text-center">
           <p className="font-display text-2xl text-foreground/80">
-            Not enough data yet
+            Nothing to show yet
           </p>
           <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-            Today's activity curve will fill in here as the deck sensor reports
-            occupancy throughout the day.
+            Once we&apos;ve counted a few times, you&apos;ll see how busy the pool
+            gets through the day.
           </p>
         </div>
       </CardContent>
