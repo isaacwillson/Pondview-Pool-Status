@@ -14,8 +14,8 @@ export const POOL_CAPACITY = 70;
  * kiddie-pool area. Residents care which area has shade, not which umbrella.
  */
 export const UMBRELLA_ZONES = [
-  { id: "main", label: "Main pool", total: 13 },
-  { id: "kitty", label: "Kitty pool", total: 3 },
+  { id: "main", label: "Main pool", total: 12 },
+  { id: "kitty", label: "Kitty pool", total: 2 },
 ] as const;
 
 export type UmbrellaZoneId = (typeof UMBRELLA_ZONES)[number]["id"];
