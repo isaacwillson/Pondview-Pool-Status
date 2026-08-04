@@ -292,7 +292,10 @@ function ShadeCard({ zones }: { zones: UmbrellaZone[] }) {
       <div className="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
         {zones.map((z) => {
           const free = Math.max(0, z.total - z.inUse);
-          const usedPct = z.total > 0 ? (z.inUse / z.total) * 100 : 0;
+          // The bar fills with what's AVAILABLE so it agrees with the "N free"
+          // number beside it: a fuller bar means more shade to grab, empty
+          // means none left. (Filling it with in-use would read backwards.)
+          const freePct = z.total > 0 ? (free / z.total) * 100 : 0;
           return (
             <div key={z.id}>
               <div className="flex items-baseline justify-between gap-3">
@@ -318,7 +321,7 @@ function ShadeCard({ zones }: { zones: UmbrellaZone[] }) {
               >
                 <div
                   className="h-full rounded-full bg-pond-500 transition-[width] duration-700"
-                  style={{ width: `${usedPct}%` }}
+                  style={{ width: `${freePct}%` }}
                 />
               </div>
             </div>
