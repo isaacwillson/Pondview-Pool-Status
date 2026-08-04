@@ -267,7 +267,7 @@ function WeeklyUsageEmpty() {
     <section aria-labelledby="weekly-heading">
       <div className="max-w-2xl">
         <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          How it usually goes
+          Community insights
         </p>
         <h2
           id="weekly-heading"
@@ -291,7 +291,7 @@ function WeeklyUsageEmpty() {
               Nothing to show yet
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Give it about a week of counts.
+              More data needed
             </p>
           </Card>
         ))}

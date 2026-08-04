@@ -97,7 +97,7 @@ export function LiveConditions({
     <section aria-labelledby="conditions-heading">
       <SectionHeading
         eyebrow=""
-        title="Right Now"
+        title="Live Pool Conditions"
         subtitle="How things look at the pool today."
         id="conditions-heading"
       />
@@ -160,7 +160,7 @@ export function LiveConditions({
           label="Pool Hours"
           primary={`${formatHourLabel(conditions.openFromHour)} – ${formatHourLabel(conditions.openUntilHour)}`}
           secondary={hoursSecondary(effective, conditions)}
-          note={`We count heads ${formatTrackingDays()}`}
+          note={`We track live occupancy ${formatTrackingDays()}`}
           accent="pond"
           className="col-span-2 lg:col-span-6"
         />

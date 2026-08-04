@@ -52,13 +52,13 @@ export function crowdSubtitle(level: CrowdLevel): string {
     case "empty":
       return "Looks like you'd have the place mostly to yourself right now.";
     case "plenty-of-space":
-      return "Pretty quiet at the moment — should be easy to find a chair.";
+      return "Pretty quiet at the moment. Easy to find a chair.";
     case "moderate":
       return "A fair number of people here, but there's still room to spread out.";
     case "busy":
-      return "It's filling up. You can probably still find a seat, though you might have to look around.";
+      return "It's filling up. You may have to look around to find a seat.";
     case "very-busy":
-      return "About as busy as it gets. Still worth a try if you don't mind sharing the deck — it usually thins out later.";
+      return "About as busy as it gets. May have trouble finding seats";
   }
 }
 
