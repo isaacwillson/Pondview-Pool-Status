@@ -6,6 +6,7 @@ import {
   Thermometer,
   TrendingDown,
   TrendingUp,
+  Umbrella,
   Users,
 } from "lucide-react";
 import { Card } from "./ui/card";
@@ -22,11 +23,12 @@ import {
   formatTrackingDays,
   isTrackingDay,
 } from "@/lib/time";
-import type { PoolConditions, PoolStatus } from "@/lib/types";
+import type { PoolConditions, PoolStatus, UmbrellaZone } from "@/lib/types";
 
 interface LiveConditionsProps {
   status: PoolStatus | null;
   conditions: PoolConditions | null;
+  umbrellas: UmbrellaZone[] | null;
   adminStatus: AdminPoolStatus | null;
   isLoading: boolean;
 }
@@ -34,6 +36,7 @@ interface LiveConditionsProps {
 export function LiveConditions({
   status,
   conditions,
+  umbrellas,
   adminStatus,
   isLoading,
 }: LiveConditionsProps) {
@@ -60,17 +63,17 @@ export function LiveConditions({
       : isLoading
         ? "…"
         : untracked
-          ? "Not tracked"
-          : "Awaiting reading";
+          ? "Not counting"
+          : "Waiting on a count";
   const crowdSecondary = closed
-    ? effective.closedReason ?? "Pool currently closed"
+    ? effective.closedReason ?? "Closed right now"
     : status
-      ? `${occupancyPct}% full`
+      ? `about ${occupancyPct}% full`
       : isLoading
-        ? "Connecting…"
+        ? "One sec…"
         : untracked
-          ? "Live tracking off today"
-          : "No readings yet";
+          ? "We're not counting today"
+          : "Haven't counted yet today";
   const crowdAccent: "emerald" | "amber" | "pond" = closed
     ? "amber"
     : status
@@ -80,22 +83,22 @@ export function LiveConditions({
 
   const trendPrimary = status ? trendDisplay(status.trend) : "—";
   const trendSecondary = closed
-    ? "Check back during open hours"
+    ? "Check back when we're open"
     : status
       ? trendSubtitle(status)
       : isLoading
-        ? "Connecting…"
+        ? "One sec…"
         : untracked
-          ? "Off today"
-          : "Available after a few readings";
+          ? "Not today"
+          : "Need a couple more counts";
   const trendMuted = closed || !status;
 
   return (
     <section aria-labelledby="conditions-heading">
       <SectionHeading
         eyebrow=""
-        title="Live Pool Conditions"
-        subtitle="Updated continuously from on-site sensors."
+        title="Right Now"
+        subtitle="How things look at the pool today."
         id="conditions-heading"
       />
 
@@ -103,7 +106,7 @@ export function LiveConditions({
         {/* Row 1: Crowd + Trend (related pair) */}
         <ConditionCard
           icon={<Users className="h-4 w-4" />}
-          label="Crowd Level"
+          label="How Busy"
           primary={crowdPrimary}
           secondary={crowdSecondary}
           accent={crowdAccent}
@@ -126,10 +129,18 @@ export function LiveConditions({
           faded={closed || untracked}
           className="lg:col-span-3"
         />
+
+        {/* Shade — high up (people specifically look for it) and given its own
+            tinted treatment so it doesn't blend into the weather cards. Shown
+            only when there's a live count, so it never renders hollow. */}
+        {!closed && umbrellas && umbrellas.length > 0 ? (
+          <ShadeCard zones={umbrellas} />
+        ) : null}
+
         {/* Row 2: Temperature + UV (related pair) */}
         <ConditionCard
           icon={<Thermometer className="h-4 w-4" />}
-          label="Air Temperature"
+          label="Air"
           primary={`${conditions.airTempF}°F`}
           secondary={`Water ${conditions.waterTempF}°F`}
           accent="rose"
@@ -149,7 +160,7 @@ export function LiveConditions({
           label="Pool Hours"
           primary={`${formatHourLabel(conditions.openFromHour)} – ${formatHourLabel(conditions.openUntilHour)}`}
           secondary={hoursSecondary(effective, conditions)}
-          note={`Crowd levels tracked ${formatTrackingDays()}`}
+          note={`We count heads ${formatTrackingDays()}`}
           accent="pond"
           className="col-span-2 lg:col-span-6"
         />
@@ -244,6 +255,80 @@ function ConditionCard({
   );
 }
 
+/**
+ * Full-width shade card: umbrellas free, split by zone so a resident wanting
+ * the main pool isn't misled by shade that's only free at the kitty pool.
+ */
+function ShadeCard({ zones }: { zones: UmbrellaZone[] }) {
+  const totalFree = zones.reduce(
+    (sum, z) => sum + Math.max(0, z.total - z.inUse),
+    0,
+  );
+  return (
+    <Card className="col-span-2 border-pond-200/70 bg-pond-50/60 p-5 lg:col-span-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span
+            className="flex h-9 w-9 items-center justify-center rounded-lg bg-pond-100 text-pond-700"
+            aria-hidden
+          >
+            <Umbrella className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-pond-700">
+              Shade
+            </p>
+            <p className="text-sm text-muted-foreground">Umbrellas free right now</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <span className="font-display text-3xl leading-none text-pond-800 tabular-nums">
+            {totalFree}
+          </span>
+          <span className="ml-1 text-sm text-muted-foreground">free</span>
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+        {zones.map((z) => {
+          const free = Math.max(0, z.total - z.inUse);
+          const usedPct = z.total > 0 ? (z.inUse / z.total) * 100 : 0;
+          return (
+            <div key={z.id}>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm font-medium text-foreground">
+                  {z.label}
+                </span>
+                <span className="text-sm tabular-nums text-muted-foreground">
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      free === 0 ? "text-rose-600" : "text-pond-700",
+                    )}
+                  >
+                    {free}
+                  </span>{" "}
+                  of {z.total} free
+                </span>
+              </div>
+              <div
+                className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-pond-100 ring-1 ring-inset ring-pond-200/60"
+                role="img"
+                aria-label={`${z.label}: ${free} of ${z.total} umbrellas free`}
+              >
+                <div
+                  className="h-full rounded-full bg-pond-500 transition-[width] duration-700"
+                  style={{ width: `${usedPct}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 function SectionHeading({
   eyebrow,
   title,
@@ -278,22 +363,22 @@ function SectionHeading({
 function trendDisplay(t: PoolStatus["trend"]) {
   switch (t) {
     case "rising":
-      return "Getting Busier";
+      return "Filling Up";
     case "falling":
-      return "Getting Quieter";
+      return "Emptying Out";
     default:
-      return "Steady";
+      return "Holding Steady";
   }
 }
 
 function trendSubtitle(status: PoolStatus) {
-  if (status.trend === "steady") return "No change in last 30 min";
+  if (status.trend === "steady") return "About the same as 30 min ago";
   const sign = status.trend === "rising" ? "+" : "−";
   const abs = Math.abs(status.trendDeltaPct);
   // Below a full point the rounded value can read "0"; show "<1%" so the
-  // magnitude never contradicts the "Getting Busier/Quieter" headline.
+  // magnitude never contradicts the "Filling Up / Emptying Out" headline.
   const magnitude = abs >= 1 ? `${sign}${abs}%` : `${sign}<1%`;
-  return `${magnitude} in last 30 min`;
+  return `${magnitude} in the last 30 min`;
 }
 
 function uvLabel(uv: number) {
@@ -306,7 +391,7 @@ function uvLabel(uv: number) {
 
 /** Sub-label for the UV card — avoids the redundant "0 / Low" pairing. */
 function uvSecondary(uv: number) {
-  if (uv === 0) return "No sun protection needed";
+  if (uv === 0) return "No sunscreen needed";
   return uvLabel(uv);
 }
 
@@ -321,7 +406,7 @@ function hoursSecondary(
     return "Closed by management";
   }
   // Schedule-driven closure — reuse the helper's friendly reason.
-  return effective.closedReason ?? "Currently closed";
+  return effective.closedReason ?? "Closed right now";
 }
 
 function LiveConditionsSkeleton() {

@@ -178,10 +178,10 @@ function LiveHero({
 
       <div className="flex flex-col justify-between gap-10 lg:pl-8">
         <div>
-          <SmallLabel>Estimated Occupancy</SmallLabel>
+          <SmallLabel>Roughly</SmallLabel>
           <div className="mt-4 flex items-baseline gap-3">
             <span
-              aria-label={`${occupancyPct} percent full`}
+              aria-label={`Roughly ${occupancyPct} percent full`}
               className="font-display text-[clamp(5rem,12vw,8.5rem)] font-normal leading-none tracking-tight text-foreground"
             >
               <AnimatedNumber value={occupancyPct} />
@@ -228,8 +228,7 @@ function ClosedHero({ effective }: { effective: EffectivePoolStatus }) {
       </Eyebrow>
       <Headline>Closed</Headline>
       <Subtitle>
-        {effective.closedReason ??
-          "The pool is currently closed. Please check back later."}
+        {effective.closedReason ?? "The pool's closed right now — check back later."}
       </Subtitle>
       {byAdmin ? (
         <div className="mt-12 max-w-xl">
@@ -265,15 +264,15 @@ function UntrackedHero() {
       </Eyebrow>
       <Headline>Open</Headline>
       <Subtitle>
-        The pool is open today ({formatHourLabel(POOL_OPEN_HOUR)}–
-        {formatHourLabel(POOL_CLOSE_HOUR)}), but live crowd levels aren&apos;t
-        tracked today. Live tracking is back {nextDay}.
+        The pool&apos;s open today ({formatHourLabel(POOL_OPEN_HOUR)}–
+        {formatHourLabel(POOL_CLOSE_HOUR)}) — we&apos;re just not counting heads
+        today. We start again {nextDay}.
       </Subtitle>
       <div className="mt-8">
         <TrackingBadge />
         <p className="mt-4 max-w-md text-sm text-muted-foreground">
-          Check <span className="font-medium text-foreground">Best Times to
-          Visit</span> below for the pool&apos;s typical pattern.
+          <span className="font-medium text-foreground">Best Times to Visit</span>{" "}
+          below shows how busy it usually gets.
         </p>
       </div>
     </div>
@@ -302,8 +301,8 @@ function JustOpenedHero() {
         </span>
       </div>
       <Subtitle>
-        No readings in yet today — the pool opens empty and fills as people
-        arrive. Live crowd levels update through the day.
+        Nobody&apos;s checked in yet today. The pool starts empty and fills up as
+        people show up — we&apos;ll update this through the day.
       </Subtitle>
     </div>
   );
@@ -325,10 +324,10 @@ function PausedHero() {
       </Eyebrow>
       <Headline>Open</Headline>
       <Subtitle>
-        The pool is open, but we&apos;re between readings right now — the live
-        crowd level will update shortly. See{" "}
+        The pool&apos;s open — we just haven&apos;t had a count in a little
+        while. It should update soon. In the meantime,{" "}
         <span className="font-medium text-foreground">Best Times to Visit</span>{" "}
-        below in the meantime.
+        below shows how busy it usually gets.
       </Subtitle>
       <div className="mt-8">
         <TrackingBadge />
@@ -345,7 +344,7 @@ function TrackingBadge() {
       className="gap-1.5 rounded-full bg-white/60 px-3 py-1 text-sm"
     >
       <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-      Crowd levels tracked {formatTrackingDays()}
+      We count heads {formatTrackingDays()}
     </Badge>
   );
 }
@@ -499,7 +498,7 @@ function getQuieterHint(
     (d) => ORDERED_LEVELS.indexOf(activityToCrowdLevel(d.activity)) < levelIdx,
   );
   if (quieterHour) {
-    return `Typically quieter after ${formatHourLabel(quieterHour.hour)}`;
+    return `Usually calms down after ${formatHourLabel(quieterHour.hour)}`;
   }
 
   // No quieter window today — check if opening hour is historically calmer
@@ -508,7 +507,7 @@ function getQuieterHint(
     openingAvg &&
     ORDERED_LEVELS.indexOf(activityToCrowdLevel(openingAvg.activity)) < levelIdx
   ) {
-    return `Stays busy through closing — typically quieter right at opening`;
+    return "Stays busy until closing — mornings are usually the calmest";
   }
 
   return null;

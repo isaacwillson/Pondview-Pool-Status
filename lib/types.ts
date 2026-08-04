@@ -38,6 +38,18 @@ export interface PoolStatus {
   trendDeltaPct: number;
 }
 
+/** Umbrella availability for one shade zone (e.g. main pool vs kitty pool). */
+export interface UmbrellaZone {
+  /** Stable id, e.g. "main" | "kitty" (see UMBRELLA_ZONES in config). */
+  id: string;
+  /** Resident-facing label, e.g. "Main pool". */
+  label: string;
+  /** Total umbrellas in this zone (fixed). */
+  total: number;
+  /** How many are currently in use. */
+  inUse: number;
+}
+
 export interface PoolConditions {
   /** Air temperature in °F. */
   airTempF: number;
@@ -94,4 +106,10 @@ export interface PoolDataSnapshot {
   hourlyActivity: HourlyActivitySet | null;
   /** null if fewer than 7 calendar days of recent readings. */
   weeklyUsage: WeeklyUsage | null;
+  /**
+   * Per-zone umbrella availability from the latest fresh reading. null when
+   * there's no live reading or umbrellas weren't counted (same freshness gate
+   * as `status`).
+   */
+  umbrellas: UmbrellaZone[] | null;
 }

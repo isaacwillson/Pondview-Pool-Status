@@ -1,4 +1,9 @@
-import { POOL_CAPACITY, POOL_CLOSE_HOUR, POOL_OPEN_HOUR } from "./config";
+import {
+  POOL_CAPACITY,
+  POOL_CLOSE_HOUR,
+  POOL_OPEN_HOUR,
+  UMBRELLA_ZONES,
+} from "./config";
 import { currentLocalHour } from "./time";
 import type {
   CrowdLevel,
@@ -35,19 +40,25 @@ export function crowdLabel(level: CrowdLevel): string {
   }
 }
 
-/** One-sentence resident-facing description that matches the crowd level. */
+/**
+ * One-sentence resident-facing description that matches the crowd level.
+ *
+ * The percentage behind these is an estimate from periodic readings, so the
+ * wording stays hedged ("looks like", "probably") and never tells anyone not
+ * to come — even at peak there may well be a free chair.
+ */
 export function crowdSubtitle(level: CrowdLevel): string {
   switch (level) {
     case "empty":
-      return "The deck is quiet right now — a great time for laps, a sunbath, or a peaceful afternoon by the water.";
+      return "Looks like you'd have the place mostly to yourself right now.";
     case "plenty-of-space":
-      return "The pool is comfortably below capacity — a great time for a swim, with room to spread out on the deck.";
+      return "Pretty quiet at the moment — should be easy to find a chair.";
     case "moderate":
-      return "The pool is steadily filling — still easy to find a seat and a stretch of open water.";
+      return "A fair number of people here, but there's still room to spread out.";
     case "busy":
-      return "The pool is getting crowded — most loungers are taken, though the water still has room.";
+      return "It's filling up. You can probably still find a seat, though you might have to look around.";
     case "very-busy":
-      return "The pool is at peak — consider coming back later if you want a relaxed visit.";
+      return "About as busy as it gets. Still worth a try if you don't mind sharing the deck — it usually thins out later.";
   }
 }
 
@@ -191,5 +202,13 @@ export function buildSnapshot(now: Date = new Date()): PoolDataSnapshot {
       // Per weekday (Sun…Sat); untracked days are 0, Saturday is the peak.
       dailyAverages: [0, 0, 24, 31, 38, 0, 47],
     },
+    // Umbrella use tracks how busy the pool is, so the demo stays consistent
+    // with its own occupancy curve.
+    umbrellas: UMBRELLA_ZONES.map((z) => ({
+      id: z.id,
+      label: z.label,
+      total: z.total,
+      inUse: Math.min(z.total, Math.round(z.total * nowActivity)),
+    })),
   };
 }

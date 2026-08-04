@@ -21,10 +21,10 @@ const instrumentSerif = Instrument_Serif({
 export const metadata: Metadata = {
   metadataBase: new URL("https://pondviewpool.vercel.app"),
   title: "Pondview Pool Status",
-  description: "Real-time pool occupancy, crowd levels, and weather conditions for Pondview residents.",
+  description: "See how busy the Pondview pool is before you head down.",
   openGraph: {
     title: "Pondview Pool Status",
-    description: "Live pool status and how busy it is right now.",
+    description: "See how busy the pool is before you head down.",
     images: [{ url: "/og-image.png", width: 1200, height: 630 }],
     type: "website",
   },

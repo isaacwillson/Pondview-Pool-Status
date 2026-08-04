@@ -72,6 +72,14 @@ export async function ensureSchema(): Promise<void> {
         CREATE INDEX IF NOT EXISTS occupancy_readings_recorded_at_idx
           ON occupancy_readings (recorded_at DESC)
       `;
+      // Umbrella in-use counts, added after launch. Nullable on purpose: rows
+      // recorded before umbrellas were tracked (and any the camera couldn't
+      // count) stay NULL = "not counted", rather than falsely claiming zero.
+      await client`
+        ALTER TABLE occupancy_readings
+          ADD COLUMN IF NOT EXISTS umbrellas_main  INTEGER CHECK (umbrellas_main  >= 0),
+          ADD COLUMN IF NOT EXISTS umbrellas_kitty INTEGER CHECK (umbrellas_kitty >= 0)
+      `;
     })().catch((err) => {
       // Reset so the next request can retry.
       schemaReady = null;
