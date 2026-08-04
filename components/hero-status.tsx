@@ -265,7 +265,7 @@ function UntrackedHero() {
       <Headline>Open</Headline>
       <Subtitle>
         The pool&apos;s open today ({formatHourLabel(POOL_OPEN_HOUR)}–
-        {formatHourLabel(POOL_CLOSE_HOUR)}) — we&apos;re just not counting heads
+        {formatHourLabel(POOL_CLOSE_HOUR)}) — No live occupancy count
         today. We start again {nextDay}.
       </Subtitle>
       <div className="mt-8">
