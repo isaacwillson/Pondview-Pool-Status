@@ -22,6 +22,8 @@ export default async function AdminDataPage() {
     occupancy: r.occupancy,
     capacity: r.capacity,
     recordedAt: r.recordedAt.toISOString(),
+    umbrellasMain: r.umbrellasMain,
+    umbrellasKitty: r.umbrellasKitty,
   }));
 
   return (
@@ -40,18 +42,12 @@ export default async function AdminDataPage() {
             data points; the charts and stats recompute from this table.
           </p>
         </div>
-        <nav className="flex items-center gap-4 text-sm">
+        <nav className="text-sm">
           <a
-            href="/admin/pool"
+            href="/admin"
             className="text-muted-foreground transition-colors hover:text-foreground"
           >
-            Pool controls
-          </a>
-          <a
-            href="/"
-            className="text-muted-foreground transition-colors hover:text-foreground"
-          >
-            ← Resident view
+            ← Dashboard
           </a>
         </nav>
       </header>

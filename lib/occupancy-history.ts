@@ -28,6 +28,10 @@ export interface ReadingInput {
   occupancy: number;
   capacity: number;
   recordedAt?: Date;
+  /** Umbrellas in use in the main pool area. null/undefined = not counted. */
+  umbrellasMain?: number | null;
+  /** Umbrellas in use in the kitty pool area. null/undefined = not counted. */
+  umbrellasKitty?: number | null;
 }
 
 /** A stored occupancy reading, including its primary key. */
@@ -36,6 +40,8 @@ export interface Reading {
   occupancy: number;
   capacity: number;
   recordedAt: Date;
+  umbrellasMain: number | null;
+  umbrellasKitty: number | null;
 }
 
 type ReadingRow = {
@@ -43,6 +49,8 @@ type ReadingRow = {
   occupancy: number;
   capacity: number;
   recorded_at: Date;
+  umbrellas_main: number | null;
+  umbrellas_kitty: number | null;
 };
 
 function toReading(r: ReadingRow): Reading {
@@ -51,7 +59,15 @@ function toReading(r: ReadingRow): Reading {
     occupancy: r.occupancy,
     capacity: r.capacity,
     recordedAt: r.recorded_at,
+    umbrellasMain: r.umbrellas_main,
+    umbrellasKitty: r.umbrellas_kitty,
   };
+}
+
+/** Normalize an optional umbrella count to a non-negative int or null. */
+function umbrellaValue(v: number | null | undefined): number | null {
+  if (v === null || v === undefined) return null;
+  return Math.max(0, Math.round(v));
 }
 
 export async function insertReading(input: ReadingInput): Promise<void> {
@@ -59,11 +75,14 @@ export async function insertReading(input: ReadingInput): Promise<void> {
   if (!sql) return;
   await ensureSchema();
   await sql`
-    INSERT INTO occupancy_readings (recorded_at, occupancy, capacity)
+    INSERT INTO occupancy_readings
+      (recorded_at, occupancy, capacity, umbrellas_main, umbrellas_kitty)
     VALUES (
       ${input.recordedAt ?? new Date()},
       ${input.occupancy},
-      ${input.capacity}
+      ${input.capacity},
+      ${umbrellaValue(input.umbrellasMain)},
+      ${umbrellaValue(input.umbrellasKitty)}
     )
   `;
 }
@@ -86,7 +105,7 @@ export async function listReadings(opts?: {
 
   const [rows, counts] = await Promise.all([
     sql<ReadingRow[]>`
-      SELECT id, occupancy, capacity, recorded_at
+      SELECT id, occupancy, capacity, recorded_at, umbrellas_main, umbrellas_kitty
       FROM occupancy_readings
       ORDER BY recorded_at DESC
       LIMIT ${limit} OFFSET ${offset}
@@ -105,9 +124,13 @@ export async function createReading(
   if (!sql) return null;
   await ensureSchema();
   const rows = await sql<ReadingRow[]>`
-    INSERT INTO occupancy_readings (recorded_at, occupancy, capacity)
-    VALUES (${input.recordedAt ?? new Date()}, ${input.occupancy}, ${input.capacity})
-    RETURNING id, occupancy, capacity, recorded_at
+    INSERT INTO occupancy_readings
+      (recorded_at, occupancy, capacity, umbrellas_main, umbrellas_kitty)
+    VALUES (
+      ${input.recordedAt ?? new Date()}, ${input.occupancy}, ${input.capacity},
+      ${umbrellaValue(input.umbrellasMain)}, ${umbrellaValue(input.umbrellasKitty)}
+    )
+    RETURNING id, occupancy, capacity, recorded_at, umbrellas_main, umbrellas_kitty
   `;
   return rows.length ? toReading(rows[0]) : null;
 }
@@ -124,9 +147,11 @@ export async function updateReading(
     UPDATE occupancy_readings
     SET occupancy = ${input.occupancy},
         capacity = ${input.capacity},
-        recorded_at = ${input.recordedAt ?? new Date()}
+        recorded_at = ${input.recordedAt ?? new Date()},
+        umbrellas_main = ${umbrellaValue(input.umbrellasMain)},
+        umbrellas_kitty = ${umbrellaValue(input.umbrellasKitty)}
     WHERE id = ${id}
-    RETURNING id, occupancy, capacity, recorded_at
+    RETURNING id, occupancy, capacity, recorded_at, umbrellas_main, umbrellas_kitty
   `;
   return rows.length ? toReading(rows[0]) : null;
 }
@@ -165,6 +190,8 @@ export interface LatestReading {
   occupancy: number;
   capacity: number;
   recordedAt: Date;
+  umbrellasMain: number | null;
+  umbrellasKitty: number | null;
 }
 
 export async function getLatestReading(): Promise<LatestReading | null> {
@@ -173,9 +200,15 @@ export async function getLatestReading(): Promise<LatestReading | null> {
   await ensureSchema();
 
   const rows = await sql<
-    { occupancy: number; capacity: number; recorded_at: Date }[]
+    {
+      occupancy: number;
+      capacity: number;
+      recorded_at: Date;
+      umbrellas_main: number | null;
+      umbrellas_kitty: number | null;
+    }[]
   >`
-    SELECT occupancy, capacity, recorded_at
+    SELECT occupancy, capacity, recorded_at, umbrellas_main, umbrellas_kitty
     FROM occupancy_readings
     ORDER BY recorded_at DESC
     LIMIT 1
@@ -186,6 +219,8 @@ export async function getLatestReading(): Promise<LatestReading | null> {
     occupancy: r.occupancy,
     capacity: r.capacity,
     recordedAt: r.recorded_at,
+    umbrellasMain: r.umbrellas_main,
+    umbrellasKitty: r.umbrellas_kitty,
   };
 }
 

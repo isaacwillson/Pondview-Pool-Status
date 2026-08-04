@@ -28,7 +28,7 @@ export default function HomePage() {
         <div className="space-y-4 sm:space-y-5">
           <div className="max-w-2xl animate-fade-in">
             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Resident Amenities · Live
+              For Pondview residents
             </p>
             <h2 className="mt-3 font-display text-2xl font-normal italic text-pond-700 sm:text-3xl">
               The Pondview Pool
@@ -61,6 +61,7 @@ export default function HomePage() {
             <LiveConditions
               status={data?.status ?? null}
               conditions={data?.conditions ?? null}
+              umbrellas={data?.umbrellas ?? null}
               adminStatus={adminStatus}
               isLoading={isLoading}
             />

@@ -22,18 +22,12 @@ export default async function AdminPoolPage() {
             Pondview Pool
           </h1>
         </div>
-        <nav className="flex items-center gap-4 text-sm">
+        <nav className="text-sm">
           <a
-            href="/admin/data"
+            href="/admin"
             className="text-muted-foreground transition-colors hover:text-foreground"
           >
-            Data editor
-          </a>
-          <a
-            href="/"
-            className="text-muted-foreground transition-colors hover:text-foreground"
-          >
-            ← Resident view
+            ← Dashboard
           </a>
         </nav>
       </header>
