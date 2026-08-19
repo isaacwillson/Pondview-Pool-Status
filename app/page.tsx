@@ -1,5 +1,6 @@
 "use client";
 
+import { ExternalLink } from "lucide-react";
 import { usePoolData } from "@/hooks/use-pool-data";
 import { usePoolStatus } from "@/hooks/use-pool-status";
 import { useScrollRestoration } from "@/hooks/use-scroll-restoration";
@@ -54,6 +55,21 @@ export default function HomePage() {
               data={data?.hourlyActivity ?? null}
               isLoading={isLoading}
             />
+            {/* Contextual hand-off to the separate arrival-forecast site — the
+                same "when to go" question, answered by prediction. Kept to one
+                muted line so it reads as a helpful continuation, not clutter. */}
+            <p className="mt-4 px-1 text-sm text-muted-foreground">
+              Want to see how busy it&apos;ll get later?{" "}
+              <a
+                href="https://pondviewforecast.vercel.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-medium text-pond-700 underline-offset-2 hover:underline"
+              >
+                Check the hourly arrival forecast
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+              </a>
+            </p>
           </div>
 
           {/* LIVE CONDITIONS */}
