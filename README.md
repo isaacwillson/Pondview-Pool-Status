@@ -2,6 +2,8 @@
 
 A live, resident-facing dashboard for the community pool at Pondview Estates (Wharton, NJ). Residents can check how busy the pool is right now, find the best times to visit, and see current conditions — before walking over with a towel.
 
+[Live Dashboard](https://pondviewpool.vercel.app)
+
 Built with Next.js 15 (App Router), React 19, TypeScript, and Tailwind CSS.
 
 ## What residents see
