@@ -7,6 +7,16 @@
 export const POOL_CAPACITY = 70;
 
 /**
+ * Whether live occupancy is being tracked at all right now. Readings were
+ * entered by hand, and there's no one doing that for the rest of the summer —
+ * the pool is still open on its normal schedule, we're just not counting heads.
+ * While this is false the resident view shows a clear "no live tracking" state
+ * instead of a stale number or a "back shortly" message. Flip to true when
+ * tracking resumes.
+ */
+export const LIVE_TRACKING_ENABLED = false;
+
+/**
  * Shade zones and how many umbrellas each has. Totals are fixed physical facts
  * (like POOL_CAPACITY), so they live here rather than in a database row; only
  * the in-use count is measured per reading. "main" combines the 10 stand-alone

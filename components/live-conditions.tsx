@@ -23,6 +23,7 @@ import {
   formatTrackingDays,
   isTrackingDay,
 } from "@/lib/time";
+import { LIVE_TRACKING_ENABLED } from "@/lib/config";
 import type { PoolConditions, PoolStatus, UmbrellaZone } from "@/lib/types";
 
 interface LiveConditionsProps {
@@ -47,6 +48,9 @@ export function LiveConditions({
 
   const effective = deriveEffectivePoolStatus(adminStatus);
   const closed = !effective.isOpen;
+  // Live occupancy isn't being tracked at all this season (see config). The
+  // pool is still open — we just have no crowd count to show.
+  const trackingPaused = !closed && !LIVE_TRACKING_ENABLED;
   // Open, no fresh reading, and today isn't a tracking day → the pool is open
   // but we're deliberately not measuring crowd levels.
   const untracked = !closed && !status && !isLoading && !isTrackingDay();
@@ -58,22 +62,26 @@ export function LiveConditions({
   // briefly during the very first fetch).
   const crowdPrimary = closed
     ? "Closed"
-    : status
-      ? crowdLabel(status.crowdLevel)
-      : isLoading
-        ? "…"
-        : untracked
-          ? "Not counting"
-          : "Waiting on a count";
+    : trackingPaused
+      ? "Not tracked"
+      : status
+        ? crowdLabel(status.crowdLevel)
+        : isLoading
+          ? "…"
+          : untracked
+            ? "Not counting"
+            : "Waiting on a count";
   const crowdSecondary = closed
     ? effective.closedReason ?? "Closed right now"
-    : status
-      ? `about ${occupancyPct}% full`
-      : isLoading
-        ? "One sec…"
-        : untracked
-          ? "We're not counting today"
-          : "Haven't counted yet today";
+    : trackingPaused
+      ? "Paused for the rest of summer"
+      : status
+        ? `about ${occupancyPct}% full`
+        : isLoading
+          ? "One sec…"
+          : untracked
+            ? "We're not counting today"
+            : "Haven't counted yet today";
   const crowdAccent: "emerald" | "amber" | "pond" = closed
     ? "amber"
     : status
@@ -84,13 +92,15 @@ export function LiveConditions({
   const trendPrimary = status ? trendDisplay(status.trend) : "—";
   const trendSecondary = closed
     ? "Check back when we're open"
-    : status
-      ? trendSubtitle(status)
-      : isLoading
-        ? "One sec…"
-        : untracked
-          ? "Not today"
-          : "Need a couple more counts";
+    : trackingPaused
+      ? "Paused for the rest of summer"
+      : status
+        ? trendSubtitle(status)
+        : isLoading
+          ? "One sec…"
+          : untracked
+            ? "Not today"
+            : "Need a couple more counts";
   const trendMuted = closed || !status;
 
   return (
@@ -126,7 +136,7 @@ export function LiveConditions({
           secondary={trendSecondary}
           accent="pond"
           muted={trendMuted}
-          faded={closed || untracked}
+          faded={closed || untracked || trackingPaused}
           className="lg:col-span-3"
         />
 
@@ -160,7 +170,11 @@ export function LiveConditions({
           label="Pool Hours"
           primary={`${formatHourLabel(conditions.openFromHour)} – ${formatHourLabel(conditions.openUntilHour)}`}
           secondary={hoursSecondary(effective, conditions)}
-          note={`We track live occupancy ${formatTrackingDays()}`}
+          note={
+            trackingPaused
+              ? "Live occupancy tracking is paused for the rest of the summer"
+              : `We track live occupancy ${formatTrackingDays()}`
+          }
           accent="pond"
           className="col-span-2 lg:col-span-6"
         />
