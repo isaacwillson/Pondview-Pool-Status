@@ -23,7 +23,11 @@ import {
   nextTrackingDay,
   weekdayLongName,
 } from "@/lib/time";
-import { POOL_CLOSE_HOUR, POOL_OPEN_HOUR } from "@/lib/config";
+import {
+  LIVE_TRACKING_ENABLED,
+  POOL_CLOSE_HOUR,
+  POOL_OPEN_HOUR,
+} from "@/lib/config";
 
 interface HeroStatusProps {
   status: PoolStatus | null;
@@ -68,6 +72,17 @@ export function HeroStatus({
     return (
       <HeroShell compact>
         <ClosedHero effective={effective} />
+      </HeroShell>
+    );
+  }
+
+  // Live tracking is switched off for the season: the pool is open, but no one
+  // is counting heads, so show that plainly instead of a stale number or a
+  // "back shortly" gap message.
+  if (!LIVE_TRACKING_ENABLED) {
+    return (
+      <HeroShell compact>
+        <TrackingPausedHero />
       </HeroShell>
     );
   }
@@ -239,6 +254,38 @@ function ClosedHero({ effective }: { effective: EffectivePoolStatus }) {
           />
         </div>
       ) : null}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tracking-paused hero — pool is OPEN, but live occupancy isn't being tracked
+// at all for the rest of the season (LIVE_TRACKING_ENABLED is false).
+// ---------------------------------------------------------------------------
+
+function TrackingPausedHero() {
+  return (
+    <div className="flex flex-col">
+      <Eyebrow
+        icon={
+          <WifiOff className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+        }
+      >
+        Open · live tracking paused
+      </Eyebrow>
+      <Headline>Open</Headline>
+      <Subtitle>
+        The pool&apos;s open its normal hours ({formatHourLabel(POOL_OPEN_HOUR)}–
+        {formatHourLabel(POOL_CLOSE_HOUR)}), but we&apos;re not tracking how busy
+        it is for the rest of the summer — so there&apos;s no live crowd count
+        right now.
+      </Subtitle>
+      <div className="mt-8 max-w-md">
+        <p className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">Best Times to Visit</span>{" "}
+          below still shows how busy the pool usually gets by hour.
+        </p>
+      </div>
     </div>
   );
 }
