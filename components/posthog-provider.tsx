@@ -19,7 +19,7 @@ export function PHProvider({ children }: { children: React.ReactNode }) {
       api_host: "/ingest",
       ui_host: "https://us.posthog.com",
       defaults: "2026-01-30",
-      capture_exceptions: true,
+      capture_exceptions: process.env.NODE_ENV === "production",
       debug: process.env.NODE_ENV === "development",
     });
   }, []);
