@@ -13,7 +13,6 @@ import {
   POOL_TIMEZONE,
   TREND_WINDOW_MS,
   WEEKLY_USAGE_MIN_DAYS,
-  WEEKLY_USAGE_WINDOW_DAYS,
 } from "./config";
 import { ensureSchema, getSql } from "./db";
 import type { HourlyActivity, Trend, TrendInfo, WeeklyUsage } from "./types";
@@ -334,14 +333,16 @@ export async function getAverageHourlyActivity(): Promise<
   if (!sql) return null;
   await ensureSchema();
 
-  // Rolling 7-day mean per hour-of-day. Same group-by-hour shape so the
-  // chart can render it the same way as today/yesterday.
+  // Mean per hour-of-day across ALL readings — the pool's typical pattern.
+  // Deliberately not windowed: it's a stable "usual" reference that stays
+  // useful even when live tracking is paused and no new readings arrive (a
+  // rolling window would empty out a week after the last reading). Same
+  // group-by-hour shape so the chart renders it like today/yesterday.
   const rows = await sql<{ hour: number; avg_pct: number }[]>`
     SELECT
       EXTRACT(hour FROM recorded_at AT TIME ZONE ${POOL_TIMEZONE})::int AS hour,
       AVG(occupancy::float / NULLIF(capacity, 0)) AS avg_pct
     FROM occupancy_readings
-    WHERE recorded_at >= NOW() - INTERVAL '7 days'
     GROUP BY hour
     ORDER BY hour
   `;
@@ -353,14 +354,13 @@ export async function getAverageHourlyActivity(): Promise<
 // Weekly usage
 // ---------------------------------------------------------------------------
 
-/** Number of distinct local days that have at least one reading recently. */
-async function countDistinctRecentDays(days: number): Promise<number> {
+/** Number of distinct local days that have at least one reading, ever. */
+async function countDistinctDays(): Promise<number> {
   const sql = getSql();
   if (!sql) return 0;
   const rows = await sql<{ days: number }[]>`
     SELECT COUNT(DISTINCT DATE(recorded_at AT TIME ZONE ${POOL_TIMEZONE}))::int AS days
     FROM occupancy_readings
-    WHERE recorded_at >= NOW() - (${days} || ' days')::interval
   `;
   return rows[0]?.days ?? 0;
 }
@@ -370,13 +370,12 @@ export async function getWeeklyUsage(): Promise<WeeklyUsage | null> {
   if (!sql) return null;
   await ensureSchema();
 
-  // Enough distinct days *within the trailing week* — the window and the
-  // threshold are separate so a pool tracked only a few days a week can still
-  // qualify (see WEEKLY_USAGE_WINDOW_DAYS / WEEKLY_USAGE_MIN_DAYS).
-  if (
-    (await countDistinctRecentDays(WEEKLY_USAGE_WINDOW_DAYS)) <
-    WEEKLY_USAGE_MIN_DAYS
-  ) {
+  // Season-to-date, not a rolling week: these are the pool's "usual" patterns,
+  // so they should keep showing even after live tracking stops for the season
+  // (a trailing-week window would empty out and leave the card blank). Still
+  // gate on a minimum number of distinct days so the card doesn't render off a
+  // couple of readings.
+  if ((await countDistinctDays()) < WEEKLY_USAGE_MIN_DAYS) {
     return null;
   }
 
@@ -388,17 +387,15 @@ export async function getWeeklyUsage(): Promise<WeeklyUsage | null> {
         EXTRACT(DOW FROM recorded_at AT TIME ZONE ${POOL_TIMEZONE})::int AS dow,
         AVG(occupancy)::float AS avg_occ
       FROM occupancy_readings
-      WHERE recorded_at >= NOW() - INTERVAL '7 days'
-        AND EXTRACT(hour FROM recorded_at AT TIME ZONE ${POOL_TIMEZONE})
+      WHERE EXTRACT(hour FROM recorded_at AT TIME ZONE ${POOL_TIMEZONE})
             BETWEEN ${POOL_OPEN_HOUR} AND ${POOL_CLOSE_HOUR - 1}
       GROUP BY dow
     `,
-    // Overall 7-day average across open hours.
+    // Overall season-to-date average across open hours.
     sql<{ avg_occ: number | null }[]>`
       SELECT AVG(occupancy)::float AS avg_occ
       FROM occupancy_readings
-      WHERE recorded_at >= NOW() - INTERVAL '7 days'
-        AND EXTRACT(hour FROM recorded_at AT TIME ZONE ${POOL_TIMEZONE})
+      WHERE EXTRACT(hour FROM recorded_at AT TIME ZONE ${POOL_TIMEZONE})
             BETWEEN ${POOL_OPEN_HOUR} AND ${POOL_CLOSE_HOUR - 1}
     `,
     // 30-min slots ranked by average occupancy. We need both ends.
@@ -408,8 +405,7 @@ export async function getWeeklyUsage(): Promise<WeeklyUsage | null> {
         (FLOOR(EXTRACT(minute FROM recorded_at AT TIME ZONE ${POOL_TIMEZONE}) / 30) * 30)::int AS minute,
         AVG(occupancy)::float AS avg_occ
       FROM occupancy_readings
-      WHERE recorded_at >= NOW() - INTERVAL '7 days'
-        AND EXTRACT(hour FROM recorded_at AT TIME ZONE ${POOL_TIMEZONE})
+      WHERE EXTRACT(hour FROM recorded_at AT TIME ZONE ${POOL_TIMEZONE})
             BETWEEN ${POOL_OPEN_HOUR} AND ${POOL_CLOSE_HOUR - 1}
       GROUP BY hour, minute
       ORDER BY avg_occ ASC NULLS LAST

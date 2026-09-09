@@ -11,11 +11,11 @@
  * The admin's `isOpen: true` is *not* an override; it just means
  * "no special closure" — the schedule still decides.
  */
-import { POOL_CLOSE_HOUR, POOL_OPEN_HOUR } from "./config";
+import { POOL_CLOSE_HOUR, POOL_OPEN_HOUR, SEASON_CLOSED } from "./config";
 import type { AdminPoolStatus } from "./pool-status";
 import { currentLocalHour, formatHourLabel } from "./time";
 
-export type EffectiveSource = "admin" | "schedule" | null;
+export type EffectiveSource = "admin" | "schedule" | "season" | null;
 
 export interface EffectivePoolStatus {
   isOpen: boolean;
@@ -42,6 +42,18 @@ export function deriveEffectivePoolStatus(
   adminStatus: AdminPoolStatus | null,
   { now = new Date(), openFromHour = POOL_OPEN_HOUR, openUntilHour = POOL_CLOSE_HOUR }: DeriveOpts = {},
 ): EffectivePoolStatus {
+  // Closed for the whole season overrides the daily schedule and any admin
+  // state — the pool won't reopen until next summer, so we never imply it
+  // opens later today or tomorrow.
+  if (SEASON_CLOSED) {
+    return {
+      isOpen: false,
+      closedReason: "Closed for the season",
+      closedBy: "season",
+      adminStatus,
+    };
+  }
+
   if (adminStatus?.isOpen === false) {
     return {
       isOpen: false,

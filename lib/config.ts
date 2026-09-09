@@ -17,6 +17,14 @@ export const POOL_CAPACITY = 70;
 export const LIVE_TRACKING_ENABLED = false;
 
 /**
+ * The pool is closed for the season. When true, the whole resident view shows
+ * a "closed for the season" state that overrides the daily open/close schedule
+ * (so it never says "opens tomorrow" — the pool won't reopen until next
+ * summer). Set back to false when the next season starts.
+ */
+export const SEASON_CLOSED = true;
+
+/**
  * Shade zones and how many umbrellas each has. Totals are fixed physical facts
  * (like POOL_CAPACITY), so they live here rather than in a database row; only
  * the in-use count is measured per reading. "main" combines the 10 stand-alone

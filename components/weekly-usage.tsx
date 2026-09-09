@@ -4,7 +4,7 @@ import { Calendar, Crown, Moon } from "lucide-react";
 import { Card } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
 import { cn, pctFull } from "@/lib/utils";
-import { formatTrackingDays, weekdayShortName } from "@/lib/time";
+import { weekdayShortName } from "@/lib/time";
 import { POOL_CAPACITY, POOL_TRACKING_DAYS } from "@/lib/config";
 import type { WeeklyUsage } from "@/lib/types";
 
@@ -22,7 +22,7 @@ export function WeeklyUsageSection({
     return <WeeklyUsageEmpty />;
   }
 
-  // Weekly Usage is a 7-day historical summary, so its capacity is the pool's
+  // This is a season-to-date historical summary, so its capacity is the pool's
   // configured capacity — not the live reading's. Sourcing it from the live
   // status blanked the whole card between readings (status is null once the
   // newest reading goes stale), even with plenty of history.
@@ -47,7 +47,7 @@ export function WeeklyUsageSection({
 
   // Everything below is derived from the data — no fixed strings that could
   // drift from what's actually being shown.
-  // Thresholds reflect that these are weekly *averages* (smoothed, so lower
+  // Thresholds reflect that these are *averages* (smoothed, so lower
   // than peak instantaneous occupancy).
   const quietChip =
     quietPct < 15 ? "Wide open" : quietPct < 35 ? "Lots of room" : "Calmer";
@@ -80,11 +80,11 @@ export function WeeklyUsageSection({
           id="weekly-heading"
           className="mt-3 font-display text-3xl font-normal leading-tight tracking-tight text-foreground sm:text-4xl"
         >
-          This Past Week
+          This Summer
         </h2>
         <p className="mt-3 max-w-2xl text-balance text-base text-muted-foreground">
-          Based on the last week of counts ({formatTrackingDays()}) — here&apos;s
-          when the pool tends to be busy and when it doesn&apos;t.
+          Based on every reading collected this summer — when the pool tended to
+          be busy, and when it didn&apos;t.
         </p>
       </div>
 
@@ -273,11 +273,11 @@ function WeeklyUsageEmpty() {
           id="weekly-heading"
           className="mt-3 font-display text-3xl font-normal leading-tight tracking-tight text-foreground sm:text-4xl"
         >
-          This Past Week
+          This Summer
         </h2>
         <p className="mt-3 max-w-2xl text-balance text-base text-muted-foreground">
-          Based on the last week of counts ({formatTrackingDays()}) — here&apos;s
-          when the pool tends to be busy and when it doesn&apos;t.
+          Based on every reading collected this summer — when the pool tended to
+          be busy, and when it didn&apos;t.
         </p>
       </div>
 

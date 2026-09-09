@@ -220,7 +220,12 @@ function LiveHero({
 
 function ClosedHero({ effective }: { effective: EffectivePoolStatus }) {
   const byAdmin = effective.closedBy === "admin";
-  const eyebrowLabel = byAdmin ? "Closed by management" : "Outside pool hours";
+  const bySeason = effective.closedBy === "season";
+  const eyebrowLabel = bySeason
+    ? "Closed for the season"
+    : byAdmin
+      ? "Closed by management"
+      : "Outside pool hours";
   const adminUpdatedValue = effective.adminStatus?.lastChangedAt
     ? formatRelativeTime(new Date(effective.adminStatus.lastChangedAt))
     : "Now";
@@ -241,9 +246,11 @@ function ClosedHero({ effective }: { effective: EffectivePoolStatus }) {
       >
         {eyebrowLabel}
       </Eyebrow>
-      <Headline>Closed</Headline>
+      <Headline>{bySeason ? "See you next summer" : "Closed"}</Headline>
       <Subtitle>
-        {effective.closedReason ?? "The pool's closed right now — check back later."}
+        {bySeason
+          ? "That's a wrap on summer — the Pondview pool is closed for the season. Thanks for a great one. Scroll down for the busiest and quietest times, and see you when it warms back up."
+          : effective.closedReason ?? "The pool's closed right now — check back later."}
       </Subtitle>
       {byAdmin ? (
         <div className="mt-12 max-w-xl">
