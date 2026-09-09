@@ -48,6 +48,7 @@ export function LiveConditions({
 
   const effective = deriveEffectivePoolStatus(adminStatus);
   const closed = !effective.isOpen;
+  const seasonClosed = effective.closedBy === "season";
   // Live occupancy isn't being tracked at all this season (see config). The
   // pool is still open — we just have no crowd count to show.
   const trackingPaused = !closed && !LIVE_TRACKING_ENABLED;
@@ -89,9 +90,11 @@ export function LiveConditions({
       : "pond";
   const crowdMuted = !closed && !status;
 
-  const trendPrimary = status ? trendDisplay(status.trend) : "—";
+  const trendPrimary = !closed && status ? trendDisplay(status.trend) : "—";
   const trendSecondary = closed
-    ? "Check back when we're open"
+    ? seasonClosed
+      ? "Back next season"
+      : "Check back when we're open"
     : trackingPaused
       ? "Paused for the rest of summer"
       : status
@@ -171,9 +174,11 @@ export function LiveConditions({
           primary={`${formatHourLabel(conditions.openFromHour)} – ${formatHourLabel(conditions.openUntilHour)}`}
           secondary={hoursSecondary(effective, conditions)}
           note={
-            trackingPaused
-              ? "Live occupancy tracking is paused for the rest of the summer"
-              : `We track live occupancy ${formatTrackingDays()}`
+            seasonClosed
+              ? "Live occupancy tracking returns next season"
+              : trackingPaused
+                ? "Live occupancy tracking is paused for the rest of the summer"
+                : `We track live occupancy ${formatTrackingDays()}`
           }
           accent="pond"
           className="col-span-2 lg:col-span-6"

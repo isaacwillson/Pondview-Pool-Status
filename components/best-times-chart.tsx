@@ -11,7 +11,12 @@ import {
   formatTrackingDays,
   isTrackingDay,
 } from "@/lib/time";
-import { POOL_CLOSE_HOUR, POOL_OPEN_HOUR, POOL_TIMEZONE } from "@/lib/config";
+import {
+  POOL_CLOSE_HOUR,
+  POOL_OPEN_HOUR,
+  POOL_TIMEZONE,
+  SEASON_CLOSED,
+} from "@/lib/config";
 import type { CrowdLevel, HourlyActivity, HourlyActivitySet } from "@/lib/types";
 
 interface BestTimesChartProps {
@@ -24,7 +29,7 @@ type TabId = "today" | "yesterday" | "average";
 const TABS: { id: TabId; label: string; quietestLabel: string }[] = [
   { id: "today", label: "Today", quietestLabel: "today" },
   { id: "yesterday", label: "Yesterday", quietestLabel: "yesterday" },
-  { id: "average", label: "Weekly avg.", quietestLabel: "on average" },
+  { id: "average", label: "Typical", quietestLabel: "on average" },
 ];
 
 const LEVEL_COLOR: Record<CrowdLevel, string> = {
@@ -43,10 +48,11 @@ const LEGEND: { level: CrowdLevel; swatch: string }[] = [
 ];
 
 export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
-  // On days the pool isn't tracked, "Today" has no data — start on the
-  // typical-pattern tab so the chart opens on something useful.
+  // Open on the tab that actually has data: the all-time "Typical" pattern
+  // when the season's closed (no live readings) or on an untracked day,
+  // otherwise "Today".
   const [tab, setTab] = useState<TabId>(() =>
-    isTrackingDay() ? "today" : "average",
+    SEASON_CLOSED || !isTrackingDay() ? "average" : "today",
   );
   const scrollRef = useRef<HTMLDivElement>(null);
   const nudgedRef = useRef(false);
@@ -76,7 +82,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
   // day's sensible default so we're never stuck on a tab that isn't shown.
   useEffect(() => {
     if (tab === "yesterday" && data?.yesterday == null) {
-      setTab(isTrackingDay() ? "today" : "average");
+      setTab(SEASON_CLOSED || !isTrackingDay() ? "average" : "today");
     }
   }, [tab, data?.yesterday]);
 
@@ -169,7 +175,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
   const activeTab = TABS.find((t) => t.id === tab)!;
   // Yesterday is a dead-end when it has no data: the day is over, so it will
   // never fill in. Only offer the tab when there's something to show. Today
-  // and Weekly avg. always render, so the strip never drops below two tabs.
+  // and Typical always render, so the strip never drops below two tabs.
   const availableTabs = TABS.filter(
     (t) => t.id !== "yesterday" || data.yesterday != null,
   );
@@ -285,7 +291,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
                     const isFuture = tab === "today" && bar.hour > localHour;
                     const heightPct = Math.max(4, bar.activity * 100);
                     const occupancyPct = Math.round(bar.activity * 100);
-                    // For future bars, project height from the weekly average for that hour
+                    // For future bars, project height from the typical average for that hour
                     const avgActivity =
                       data.average?.find((d) => d.hour === bar.hour)?.activity ?? 0;
                     const projectedHeight = Math.max(4, avgActivity * 100);
@@ -318,7 +324,7 @@ export function BestTimesChart({ data, isLoading }: BestTimesChartProps) {
                         )}
 
                         {isFuture ? (
-                          // Future hour: ghost bar at projected (weekly avg) height — no color meaning
+                          // Future hour: ghost bar at projected (typical average) height — no color meaning
                           hasProjection ? (
                             <div
                               className="w-full rounded-t-sm border-t-2 border-dashed border-foreground/30 bg-foreground/[0.07]"
@@ -438,11 +444,11 @@ function tabContext(tab: TabId): string {
     case "today":
       return isTrackingDay()
         ? `Today · ${formatPoolDate(0)}`
-        : "We're not counting today — check Weekly avg. for the usual pattern";
+        : "We're not counting today — check Typical for the usual pattern";
     case "yesterday":
       return `Yesterday · ${formatPoolDate(-1)}`;
     case "average":
-      return `A normal week, averaged across ${formatTrackingDays()}`;
+      return "The pool's typical pattern by hour, across all readings so far";
   }
 }
 
@@ -462,7 +468,7 @@ function emptyTabBody(tab: TabId): string {
     case "today":
       return isTrackingDay()
         ? "This fills in as we count through the day."
-        : `We count heads ${formatTrackingDays()}. Switch to Weekly avg. to see how busy it usually gets.`;
+        : `We count heads ${formatTrackingDays()}. Switch to Typical to see how busy it usually gets.`;
     case "yesterday":
       return "We didn't get any counts yesterday.";
     case "average":
